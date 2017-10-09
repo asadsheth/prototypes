@@ -14,8 +14,6 @@ $DEBUG = false;
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
 
 $ALL_VIBES = array(
-	array( 'name' => 'NBA', 'id' => 'e238b3d0-c6d5-11e5-af54-fa163e2c24a6' ),
-	array( 'name' => 'NFL', 'id' => '110a9e34-b2c8-11e5-9dd2-fa163e2c24a6' ),
 	array( 'name' => 'Finance', 'id' => '338950e1-cae3-359e-bfa3-af403b69d694' ),
 	array( 'name' => 'Politics', 'id' => 'dbb2094c-7d9a-37c0-96b9-7f844af62e78', 'slackhook' => 'https://hooks.slack.com/services/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' ),
 	array( 'name' => 'United States', 'id' => 'f5504734-2071-32a6-b729-74a9b3141a44' ),
@@ -40,8 +38,6 @@ $ALL_VIBES = array(
 	array( 'name' => 'Odd News', 'id' => '4cc44322-c2d9-3f74-a5db-9b00e071574f' ),
 	array( 'name' => 'Astronomy', 'id' => '28d52c31-89c5-330f-9d52-61eec9fa77cc' )
 );
-
-// echo json_encode($ALL_VIBES); exit;
 
 if($DEBUG)	{
 	$ALL_VIBES = array(
@@ -143,8 +139,6 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 		if(
 			// only if this is full
 			count($object['items']['result']) == 15
-			// or just do it always?
-			|| true
 		)	{
 			// get the next items
 			$next_obj = (curl_ranked_stream($vibe_id, json_encode($object['meta']['result'][0]))); 
