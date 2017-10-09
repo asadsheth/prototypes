@@ -10,9 +10,11 @@ $logp = fopen('log.log', 'a');
 fwrite($logp, '----------------------------' . "\n");
 
 $CACHE_DIR = './caches/';
-$DEBUG = false;
+$DEBUG = true;
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
 
+// search api
+// http://mobile-homerun-yql.vibe.production.omega.gq1.yahoo.com:4080/api/vibe/v1/search/topics?query=health&enforcePostAcl=false
 $ALL_VIBES = array(
 	array( 'name' => 'NBA', 'id' => 'e238b3d0-c6d5-11e5-af54-fa163e2c24a6' ),
 	array( 'name' => 'NFL', 'id' => '110a9e34-b2c8-11e5-9dd2-fa163e2c24a6' ),
@@ -38,7 +40,8 @@ $ALL_VIBES = array(
 	array( 'name' => 'Artificial Intelligence', 'id' => '106dab7c-e883-3cad-a20c-0ba7af1ec7fe', 'slackhook' => 'https://hooks.slack.com/services/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' ),
 	array( 'name' => 'Virtual Reality', 'id' => '2ab16973-6dc1-33f7-9434-6c81f38d1eea' ),
 	array( 'name' => 'Odd News', 'id' => '4cc44322-c2d9-3f74-a5db-9b00e071574f' ),
-	array( 'name' => 'Astronomy', 'id' => '28d52c31-89c5-330f-9d52-61eec9fa77cc' )
+	array( 'name' => 'Astronomy', 'id' => '28d52c31-89c5-330f-9d52-61eec9fa77cc' ),
+	array( 'name' => 'Health Care Reform', 'id' => 'a0d7935a-b327-11e5-bc1e-fa163e6f4a7e')
 );
 
 // echo json_encode($ALL_VIBES); exit;
@@ -47,8 +50,8 @@ if($DEBUG)	{
 	$ALL_VIBES = array(
 		array( 'name' => 'Finance', 'id' => '338950e1-cae3-359e-bfa3-af403b69d694' ),
 		array( 'name' => 'Deep Learning', 'id' => '26680209-25eb-3186-ad86-033a8af16364' ),
-		array( 'name' => 'Politics', 'id' => 'dbb2094c-7d9a-37c0-96b9-7f844af62e78', 'slackhook' => 'https://hooks.slack.com/services/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' ),		
-		array( 'name' => 'Astronomy', 'id' => '28d52c31-89c5-330f-9d52-61eec9fa77cc' )		
+		array( 'name' => 'Health Care Reform', 'id' => 'a0d7935a-b327-11e5-bc1e-fa163e6f4a7e'),
+		array( 'name' => 'Astronomy', 'id' => '28d52c31-89c5-330f-9d52-61eec9fa77cc' )	
 	);
 }
 
@@ -146,15 +149,21 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 			// or just do it always?
 			|| true
 		)	{
-			// get the next items
-			$next_obj = (curl_ranked_stream($vibe_id, json_encode($object['meta']['result'][0]))); 
 
-			// add them to the original object
-			for($i = 0; $i < count($next_obj['items']['result']); $i++) {
-				array_push($object['items']['result'], json_decode(json_encode($next_obj['items']['result'][$i]), true));
-			} 
+			$next_token = json_encode($object['meta']['result'][0]);
+			for($recurs = 0; $recurs < 2; $recurs++)	{
+				// get the next items
+				$next_obj = (curl_ranked_stream($vibe_id, $next_token)); 
 
-			fwrite($logp, 'revised remote count: ' . count($object['items']['result']) . "\n");			
+				// add them to the original object
+				for($i = 0; $i < count($next_obj['items']['result']); $i++) {
+					array_push($object['items']['result'], json_decode(json_encode($next_obj['items']['result'][$i]), true));
+				} 
+
+				fwrite($logp, 'revised remote count: ' . count($object['items']['result']) . "\n");
+
+				$next_token = json_encode($next_obj['meta']['result'][0]);
+			}
 		}
 
 		// parse it all
@@ -183,6 +192,10 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 
 			if($lead_attribution == 'provider')	{
 				$provider_posts++;
+			}
+			else {
+				// print_r($obj);
+				// exit;
 			}
 			
 			// go through all the saved posts and see if this post already exists
