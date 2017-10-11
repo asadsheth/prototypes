@@ -1,10 +1,10 @@
 <?php
 //TODO BACKFILL WITH ROLE OF ALGO
 //TODO ADD TOP REPLY TO EACH COMMENT
-
-// TODO ADD THE OTEHR TOP COMMENT TO COMPARE
+// TODO ADD THE OTHER TOP COMMENT TO COMPARE
 
 error_reporting(0);
+set_time_limit(120);
 
 // get our shared service for vibes
 require('../shared/allvibes.php');
@@ -17,6 +17,7 @@ fwrite($logp, '----------------------------' . "\n");
 $CACHE_DIR = './caches/';
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
 $DEBUG = false;
+$ADDITIONAL_VIBE_PAGES = 2;
 
 // echo json_encode($ALL_VIBES); exit;
 
@@ -29,9 +30,15 @@ if($DEBUG)	{
 	);
 }
 
-function curl_ranked_stream($vibe_id, $next)	{
+// write all vibes to disk
+file_put_contents($CACHE_DIR . "all_vibes.jsonp", 'jsonp_parse_vibes(' . json_encode($ALL_VIBES) . ');');
+
+// go get the stream
+function curl_stream($vibe_id, $next)	{
+	// legacy ranking
 	$url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/rankedStream?lang=en-US&region=US';
-	$url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/smartChronoStream?lang=en-US&region=US';
+	// smart chrono stream_encoding(stream)
+	// $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/smartChronoStream?lang=en-US&region=US';
 
 	if(isset($next))	{
 		// get th enext stream
@@ -94,7 +101,7 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	$vibe_id = $ALL_VIBES[$ind]['id'];
 	$vibe_name = $ALL_VIBES[$ind]['name'];
 
-	// only check remotely if the file hasn't been updated in the last...?
+	// get local posts if they exist
 	if(
 		false 
 		&& file_exists($CACHE_DIR . "$vibe_id.json")
@@ -113,7 +120,7 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	// since we always check remote; this is not needed
 	if(true)	{
 		// get the first 15
-		$object = curl_ranked_stream($vibe_id);
+		$object = curl_stream($vibe_id);
 		fwrite($logp, 'initial remote count: ' . count($object['items']['result']) . "\n");
 
 		// get the next 15
@@ -125,9 +132,9 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 		)	{
 
 			$next_token = json_encode($object['meta']['result'][0]);
-			for($recurs = 0; $recurs < 2; $recurs++)	{
+			for($recurs = 0; $recurs < $ADDITIONAL_VIBE_PAGES; $recurs++)	{
 				// get the next items
-				$next_obj = (curl_ranked_stream($vibe_id, $next_token)); 
+				$next_obj = (curl_stream($vibe_id, $next_token)); 
 
 				// add them to the original object
 				for($i = 0; $i < count($next_obj['items']['result']); $i++) {
@@ -244,6 +251,7 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 
 	// id for this vibe
 	$vibe_id = $ALL_VIBES[$ind]['id'];
+	$vibe_name = $ALL_VIBES[$ind]['name'];
 
 	// messages for this vibe
 	// TODO GET THIS FROM FILE FIRST IF IT EXISTS
@@ -253,7 +261,7 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 	$posts = json_decode(file_get_contents($CACHE_DIR . "$vibe_id.json"), true);
 
 	for($i = 0; $i < count($posts); $i++)	{		
-		fwrite($logp, 'working on comment requests for post #' . $i . ' - ' . $posts[$i]['title'] . "\n");
+		fwrite($logp, $vibe_name . ': working on comment requests for post #' . $i . ' - ' . $posts[$i]['title'] . "\n");
 		// extract($posts[$i]);
 		// echo 'title: ' . $title . "\n";
 		// echo 'provider: ' . $provider . "\n";
@@ -324,6 +332,8 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 				&& isset($message_author_img)
 				// upvotes is not negligible?
 				// && $uv > 1
+				// comment text doesn't have "yahoo" in it?
+				&& !strstr(strtolower($message_text), 'yahoo')
 			)	{
 				array_unshift($msgs, $msg);
 				$found_message = true;
