@@ -16,7 +16,7 @@ fwrite($logp, '----------------------------' . "\n");
 // configs
 $CACHE_DIR = './caches/';
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
-$DEBUG = false;
+$DEBUG = true;
 $ADDITIONAL_VIBE_PAGES = 2;
 
 // echo json_encode($ALL_VIBES); exit;
@@ -36,9 +36,9 @@ file_put_contents($CACHE_DIR . "all_vibes.jsonp", 'jsonp_parse_vibes(' . json_en
 // go get the stream
 function curl_stream($vibe_id, $next)	{
 	// legacy ranking
-	$url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/rankedStream?lang=en-US&region=US';
+	// $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/rankedStream?lang=en-US&region=US';
 	// smart chrono stream_encoding(stream)
-	// $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/smartChronoStream?lang=en-US&region=US';
+	$url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/smartChronoStream?lang=en-US&region=US';
 
 	if(isset($next))	{
 		// get th enext stream
@@ -88,6 +88,17 @@ function curl_stream($vibe_id, $next)	{
 		file_put_contents($CACHE_DIR . "$vibe_id.json", json_encode($posts));
 	    continue;
 	}
+
+	return $object; 
+}
+
+// go get the stream
+function curl_canvass_replies($context_id, $message_id)	{
+	$reply_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/' . $context_id . '/messages/' . $message_id . '/replies?region=US&lang=en-US&count=50';
+
+	$reply_response = file_get_contents($canvass_request_url);
+	$canvass_response_object = json_decode($canvass_response, true);
+	$messages = $canvass_response_object['canvassMessages'];
 
 	return $object; 
 }
@@ -273,6 +284,7 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 
 		// canvass request
 		$canvass_request_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/' . $posts[$i]['content_id'] . '/messages?count=30&sortBy=popular&region=US&lang=en-US&rankingProfile=canvassHalfLifeDecayProfile&userActivity=true';
+
 		$canvass_response = file_get_contents($canvass_request_url);
 		$canvass_response_object = json_decode($canvass_response, true);
 		$messages = $canvass_response_object['canvassMessages'];
@@ -342,6 +354,11 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 
 		if($found_message)	{
 			// good!
+			// could get replies?
+			// echo $canvass_request_url; exit;
+			// $replies_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/062d0147-9039-3271-929a-e1dc1c216716/messages/dc9571ba-2ff2-431b-8226-e56ba6d42766/replies?region=US&lang=en-US&count=50';
+			// $reply_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/' . $context_id . '/messages/' . $message_id . '/replies?region=US&lang=en-US&count=50';
+
 		}
 		else {
 			// oops, let's just hack this post together and pretend our bot posted it
