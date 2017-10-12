@@ -16,8 +16,8 @@ fwrite($logp, '----------------------------' . "\n");
 // configs
 $CACHE_DIR = './caches/';
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
-$DEBUG = true;
-$ADDITIONAL_VIBE_PAGES = 2;
+$DEBUG = false;
+$ADDITIONAL_VIBE_PAGES = 0;
 
 // echo json_encode($ALL_VIBES); exit;
 
@@ -96,11 +96,10 @@ function curl_stream($vibe_id, $next)	{
 function curl_canvass_replies($context_id, $message_id)	{
 	$reply_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/' . $context_id . '/messages/' . $message_id . '/replies?region=US&lang=en-US&count=50';
 
-	$reply_response = file_get_contents($canvass_request_url);
-	$canvass_response_object = json_decode($canvass_response, true);
-	$messages = $canvass_response_object['canvassMessages'];
+	$reply_response = file_get_contents($reply_url);
+	$reply_response_object = json_decode($reply_response, true);
 
-	return $object; 
+	return $reply_response_object; 
 }
 
 
@@ -299,11 +298,11 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 			$message_downvotes = $messages[$j]['reactionStats']['downVoteCount'];
 			$message_reports = $messages[$j]['reactionStats']['abuseVoteCount'];
 			$message_replies = $messages[$j]['reactionStats']['replyCount'];
-			$message_author_name = $messages[$i]['meta']['author']['nickname'];
-			$message_author_img = $messages[$i]['meta']['author']['image']['url'];
-			$message_context_id = $messages[$i]['contextId'];
+			$message_author_name = $messages[$j]['meta']['author']['nickname'];
+			$message_author_img = $messages[$j]['meta']['author']['image']['url'];
+			$message_context_id = $messages[$j]['contextId'];
 			$message_context_meta = json_decode(json_encode($posts[$i]), true);
-			$message_created_at = $messages[$i]['meta']['createdAt'];
+			$message_created_at = $messages[$j]['meta']['createdAt'];
 
 			// reddit score
 	    	$r = $message_reports;
@@ -323,7 +322,7 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 
 			$msg = array(
 				'text' => $message_text,
-				'id' => $message_id,
+				'message_id' => $message_id,
 				'context_id' => $message_context_id,
 				'upvotes' => $message_upvotes,
 				'downvotes' => $message_downvotes,
@@ -358,13 +357,12 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 			// echo $canvass_request_url; exit;
 			// $replies_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/062d0147-9039-3271-929a-e1dc1c216716/messages/dc9571ba-2ff2-431b-8226-e56ba6d42766/replies?region=US&lang=en-US&count=50';
 			// $reply_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/' . $context_id . '/messages/' . $message_id . '/replies?region=US&lang=en-US&count=50';
-
 		}
 		else {
 			// oops, let's just hack this post together and pretend our bot posted it
 			array_unshift($msgs, array(
 				'text' => null,
-				'id' => '?',
+				'message_id' => '?',
 				'context_id' => '?',
 				'upvotes' => '0',
 				'downvotes' => '0',
@@ -410,18 +408,64 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 
 	// resort this thing based on comment timestamp
 	for($i = 0; $i < count($deduped_msgs); $i++)	{
-			for($j = $i + 1; $j < count($deduped_msgs); $j++)  {
-				$weighted_timestamp_i = pow(10, max(5 - floor(log($deduped_msgs[$i]['comment_relative_time'] + 1) / log(3)), 0)) + $deduped_msgs[$i]['score'];
-				$weighted_timestamp_j = pow(10, max(5 - floor(log($deduped_msgs[$j]['comment_relative_time'] + 1) / log(3)), 0)) + $deduped_msgs[$j]['score'];
+		for($j = $i + 1; $j < count($deduped_msgs); $j++)  {
+			$weighted_timestamp_i = pow(10, max(6 - floor(log($deduped_msgs[$i]['comment_relative_time'] + 1) / log(3)), 0)) + $deduped_msgs[$i]['score'];
+			$weighted_timestamp_j = pow(10, max(6 - floor(log($deduped_msgs[$j]['comment_relative_time'] + 1) / log(3)), 0)) + $deduped_msgs[$j]['score'];
 
-				if($weighted_timestamp_i < $weighted_timestamp_j)	{
-					$tmp = json_encode($deduped_msgs[$i]);
-					$deduped_msgs[$i] = json_decode(json_encode($deduped_msgs[$j]), true);
-					$deduped_msgs[$j] = json_decode($tmp, true);
-				}
+			if($weighted_timestamp_i < $weighted_timestamp_j)	{
+				$tmp = json_encode($deduped_msgs[$i]);
+				$deduped_msgs[$i] = json_decode(json_encode($deduped_msgs[$j]), true);
+				$deduped_msgs[$j] = json_decode($tmp, true);
 			}
 		}
+	}
 
+	// go through what we've got left and figure out the reply situation
+	for($i = 0; $i < count($deduped_msgs); $i++)	{
+		if($deduped_msgs[$i]['message_id'] == '?') {
+			// oops, this one is not a user comment
+			continue;
+		}
+		else {
+			continue;
+
+			$replies_obj = curl_canvass_replies($deduped_msgs[$i]['context_id'], $deduped_msgs[$i]['message_id']);
+
+			$reply_list = $replies_obj['canvassReplies'];
+
+			for($j = 0; $j < count($reply_list); $j++) {
+				$reply_text = $reply_list[$j]['details']['userText'];
+				$reply_id = $reply_list[$j]['messageId'];
+				$reply_upvotes = $reply_list[$j]['reactionStats']['upVoteCount'];
+				$reply_downvotes = $reply_list[$j]['reactionStats']['downVoteCount'];
+				$reply_reports = $reply_list[$j]['reactionStats']['abuseVoteCount'];
+				$reply_replies = $reply_list[$j]['reactionStats']['replyCount'];
+				$reply_author_name = $reply_list[$j]['meta']['author']['nickname'];
+				$reply_author_img = $reply_list[$j]['meta']['author']['image']['url'];
+				$reply_context_id = $reply_list[$j]['contextId'];
+				// $reply_context_meta = json_decode(json_encode($posts[$i]), true);
+				$reply_created_at = $reply_list[$j]['meta']['createdAt'];
+
+				$msg = array(
+					'text' => $reply_text,
+					'message_id' => $reply_id,
+					'context_id' => $reply_context_id,
+					'upvotes' => $reply_upvotes,
+					'downvotes' => $reply_downvotes,
+					'reports' => $reply_reports,
+					'replies' => $reply_replies,
+					'author_name' => $reply_author_name,
+					'author_img' => $reply_author_img,
+					'score' => $score,
+					// 'context_meta' => $reply_context_meta,
+					'created_at' => $reply_created_at,
+					'comment_relative_time' => floor((time() - $reply_created_at) / 3600),
+					'bot' => false
+				);
+
+			}
+		}
+	}
 
 	file_put_contents($CACHE_DIR . "c_$vibe_id.jsonp", 'jsonp_parse_posts(' . json_encode($deduped_msgs) . ');');
 }
