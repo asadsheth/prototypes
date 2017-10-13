@@ -1,10 +1,10 @@
 <?php
-//TODO BACKFILL WITH ROLE OF ALGO
-//TODO ADD TOP REPLY TO EACH COMMENT
+// TODO BACKFILL WITH ROLE OF ALGO
+// TODO ADD TOP REPLY TO EACH COMMENT
 // TODO ADD THE OTHER TOP COMMENT TO COMPARE
 
 error_reporting(0);
-set_time_limit(120);
+set_time_limit(3600);
 
 // get our shared service for vibes
 require('../shared/allvibes.php');
@@ -18,7 +18,6 @@ $CACHE_DIR = './caches/';
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
 $DEBUG = false;
 $ADDITIONAL_VIBE_PAGES = 0;
-
 // echo json_encode($ALL_VIBES); exit;
 
 if($DEBUG)	{
@@ -26,6 +25,7 @@ if($DEBUG)	{
 		array( 'name' => 'Finance', 'id' => '338950e1-cae3-359e-bfa3-af403b69d694' ),
 		array( 'name' => 'Deep Learning', 'id' => '26680209-25eb-3186-ad86-033a8af16364' ),
 		array( 'name' => 'Health Care Reform', 'id' => 'a0d7935a-b327-11e5-bc1e-fa163e6f4a7e'),
+		array( 'name' => 'Sports', 'id' => '5c839b50-00d3-37e8-a68f-7c03c48d7104', 'slackhook' => 'https://hooks.slack.com/services/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' ),
 		array( 'name' => 'Astronomy', 'id' => '28d52c31-89c5-330f-9d52-61eec9fa77cc' )	
 	);
 }
@@ -232,7 +232,8 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 					'content_url' => $content_url,
 					'content_published_at' => $content_published_at,
 					'content_relative_time' => floor((time() - $content_published_at) / 3600),
-					'vibe_name' => $vibe_name
+					'vibe_name' => $vibe_name,
+					'vibe_id' => $vibe_id
 				));
 			}
 			else {
@@ -256,6 +257,7 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 // http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/164ca269-c3c9-353e-b82a-f1b2199fae44/messages?count=100&sortBy=popular&region=US&lang=en-US&rankingProfile=canvassHalfLifeDecayProfile&userActivity=true					
 
 // comment work
+$every_single_comment = array();
 for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 	fwrite($logp, 'working on comment requests for ' . $ALL_VIBES[$ind]['name'] . " - " . $ALL_VIBES[$ind]['id'] . "\n");
 
@@ -292,6 +294,8 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 		$found_message = false;
 		for($j = 0; $j < count($messages); $j++)	{
 
+			// echo json_encode($messages[$j]); exit;
+
 			$message_text = $messages[$j]['details']['userText'];
 			$message_id = $messages[$j]['messageId'];
 			$message_upvotes = $messages[$j]['reactionStats']['upVoteCount'];
@@ -300,6 +304,7 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 			$message_replies = $messages[$j]['reactionStats']['replyCount'];
 			$message_author_name = $messages[$j]['meta']['author']['nickname'];
 			$message_author_img = $messages[$j]['meta']['author']['image']['url'];
+			$message_author_guid = $messages[$j]['meta']['author']['guid'];
 			$message_context_id = $messages[$j]['contextId'];
 			$message_context_meta = json_decode(json_encode($posts[$i]), true);
 			$message_created_at = $messages[$j]['meta']['createdAt'];
@@ -330,6 +335,7 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 				'replies' => $message_replies,
 				'author_name' => $message_author_name,
 				'author_img' => $message_author_img,
+				'author_guid' => $message_author_guid,
 				'score' => $score,
 				'context_meta' => $message_context_meta,
 				'created_at' => $message_created_at,
@@ -370,6 +376,7 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 				'replies' => '0',
 				'author_name' => 'Newsroom Bot',
 				'author_img' => 'https://s.yimg.com/ge/myc/newsroom_app_icon_ios.png',
+				'author_guid' => '1',
 				'score' => 0,
 				'context_meta' => json_decode(json_encode($posts[$i]), true),
 				'created_at' => 0,
@@ -379,10 +386,14 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 		}
 	}
 
-	// rank the messages by score
+	// rank the messages by time-wieghted-score
 	for($i = 0; $i < count($msgs); $i++)	{
 		for($j = $i + 1; $j < count($msgs); $j++)  {
-			if($msgs[$i]['score'] < $msgs[$j]['score'])	{
+			$weighted_timestamp_i = pow(10, max(6 - floor(log($msgs[$i]['comment_relative_time'] + 1) / log(3)), 0)) + $msgs[$i]['score'];
+			$weighted_timestamp_j = pow(10, max(6 - floor(log($msgs[$j]['comment_relative_time'] + 1) / log(3)), 0)) + $msgs[$j]['score'];
+
+			
+			if($weighted_timestamp_i < $weighted_timestamp_j)	{
 				$tmp = json_encode($msgs[$i]);
 				$msgs[$i] = json_decode(json_encode($msgs[$j]), true);
 				$msgs[$j] = json_decode($tmp, true);
@@ -392,6 +403,9 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 
 	// write the comments themselves just in case
 	file_put_contents($CACHE_DIR . "c_$vibe_id.json", json_encode($msgs));
+	file_put_contents($CACHE_DIR . "c_full_$vibe_id.jsonp", 'jsonp_parse_comment_list(' .json_encode($msgs) . ');');
+	// add em all to our full tracker
+	$every_single_comment = array_merge($every_single_comment, $msgs);
 
 	// spit out a jsonp for this vibe; only one comment per post
 	$seen_posts = array();
@@ -422,17 +436,20 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 
 	// go through what we've got left and figure out the reply situation
 	for($i = 0; $i < count($deduped_msgs); $i++)	{
-		if($deduped_msgs[$i]['message_id'] == '?') {
+		if(
+			$deduped_msgs[$i]['message_id'] == '?'
+			|| $deduped_msgs[$i]['replies'] == '0'
+		) {
 			// oops, this one is not a user comment
 			continue;
 		}
 		else {
-			continue;
-
 			$replies_obj = curl_canvass_replies($deduped_msgs[$i]['context_id'], $deduped_msgs[$i]['message_id']);
 
 			$reply_list = $replies_obj['canvassReplies'];
 
+			// parse replies out
+			$reps = array();
 			for($j = 0; $j < count($reply_list); $j++) {
 				$reply_text = $reply_list[$j]['details']['userText'];
 				$reply_id = $reply_list[$j]['messageId'];
@@ -445,6 +462,22 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 				$reply_context_id = $reply_list[$j]['contextId'];
 				// $reply_context_meta = json_decode(json_encode($posts[$i]), true);
 				$reply_created_at = $reply_list[$j]['meta']['createdAt'];
+
+				// reddit score
+		    	$r = $reply_reports;
+		    	$uv = $reply_upvotes;
+		    	$dv = $reply_downvotes;
+		    	// cheating downvotes by adding 10x the report count to penalize reported comments and 5 downvotes to underweight new comments
+		    	$dv = $reply_downvotes + 10 * $r + 5;
+		    	$n = $uv + $dv;
+		    	if($n == 0)	{ $score = 0; } else {
+		    		$z = 1.281551565545;
+		    		$p = $uv / $n;
+					$left = $p + 1/(2*$n)*$z*$z;
+					$right = $z*sqrt($p*(1-$p)/$n + $z*$z/(4*$n*$n));
+					$under = 1+1/$n*$z*$z;
+					$score = ($left + $right) / $under;
+		    	}
 
 				$msg = array(
 					'text' => $reply_text,
@@ -463,12 +496,49 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 					'bot' => false
 				);
 
+				array_push($reps, $msg);
+
 			}
+
+			// sort the reply list
+			for($j = 0; $j < count($reps); $j++) {
+				for($k = $j + 1; $k < count($reps); $k++) {
+					if($reps[$j]['score'] < $reps[$k]['score'])	{
+						$tmp = json_encode($reps[$j]);
+						$reps[$j] = json_decode(json_encode($reps[$k]), true);
+						$reps[$k] = json_decode($tmp, true);
+					}
+				}
+			}
+
+			$deduped_msgs[$i]['ripostes'] = $reps[0];
 		}
 	}
 
 	file_put_contents($CACHE_DIR . "c_$vibe_id.jsonp", 'jsonp_parse_posts(' . json_encode($deduped_msgs) . ');');
 }
+
+fwrite($logp, '= starting to re-sort all comments' . "\n");
+// resort all comments by timestamp-weighted-score
+for($i = 0; $i < count($every_single_comment); $i++)	{
+	for($j = $i + 1; $j < count($every_single_comment); $j++)	{
+		$weighted_timestamp_i = pow(10, max(6 - floor(log($every_single_comment[$i]['comment_relative_time'] + 1) / log(3)), 0)) + $every_single_comment[$i]['score'];
+		$weighted_timestamp_j = pow(10, max(6 - floor(log($every_single_comment[$j]['comment_relative_time'] + 1) / log(3)), 0)) + $every_single_comment[$j]['score'];
+
+		// echo "age:\t" . $every_single_comment[$j]['comment_relative_time'] . "\ntimestamp:\t" . $weighted_timestamp_j . "\n";;
+
+		if($weighted_timestamp_i < $weighted_timestamp_j)	{
+			$tmp = $every_single_comment[$i];
+			$every_single_comment[$i] = $every_single_comment[$j];
+			$every_single_comment[$j] = $tmp;
+		}
+	}	
+
+	// echo 'sorted ' . $i . " of " . count($every_single_comment) . "\n";
+}
+
+file_put_contents($CACHE_DIR . "c_allvibes.jsonp", 'jsonp_parse_all_comments(' . json_encode($every_single_comment) . ')'); 
+file_put_contents($CACHE_DIR . "c_allvibes.json", json_encode($every_single_comment)); 
 
 fwrite($logp, '=================== END' . "\n");
 fclose($logp);

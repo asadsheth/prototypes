@@ -30,9 +30,9 @@ div.vibe_button {
 h1.vibe_header	{
 	text-align: center;
 	background: linear-gradient(45deg, blue, purple);
-	height: 400px;
-	line-height: 400px;
-	font-size: 70px;
+	height: 200px;
+	line-height: 200px;
+	font-size: 30px;
 	color: white;
 }
 
@@ -85,8 +85,14 @@ div.context {
 div.context div.context_title {
 	font-weight: bold;
 	padding: 0px 20px;
-	margin: 20px 0px;
+	margin: 20px 0px 10px 0px;
 	font-size: 30px;
+}
+div.context div.context_source {
+	font-weight: normal;
+	padding: 0px 20px;
+	margin: 0px 0px;
+	font-size: 10px;
 }
 img.context_image {
 	width: 100%;
@@ -144,8 +150,18 @@ var COLORS = [
 ];
 
 document.addEventListener("DOMContentLoaded", function(event) {
-	// get vibes from cached list
-	load_vibe_list();
+	if(window.location.href.indexOf('allcomments') > -1)	{
+		document.body.innerHTML = '';
+
+		console.log('allcomments')
+		var scr = document.createElement('script');
+		scr.src = 'caches/c_allvibes.jsonp';
+		document.head.appendChild(scr);
+	}
+	else {
+		// get vibes from cached list
+		load_vibe_list();
+	}
 });
 
 function load_vibe_list() {
@@ -156,14 +172,133 @@ function load_vibe_list() {
 }
 
 function load_vibe(id) {
-	var scr = document.createElement('script');
-	scr.src = 'caches/c_' + id + '.jsonp';
-	document.head.appendChild(scr);
+	// check if we're evaluating all comments for each vibe
+	if(window.location.href.indexOf('evaluate') > -1)	{
+		var scr = document.createElement('script');
+		scr.src = 'caches/c_full_' + id + '.jsonp';
+		document.head.appendChild(scr);
+	}
+	else {
+		var scr = document.createElement('script');
+		scr.src = 'caches/c_' + id + '.jsonp';
+		document.head.appendChild(scr);
+	}
+}
+
+function jsonp_parse_all_comments(obj) {
+	console.log(obj);
+
+    var theme_color = COLORS[Math.floor(Math.random() * COLORS.length)];
+	document.body.className = 'vibe_comment_evaluator';
+
+	for(var i = 0; i < obj.length; i++)	{
+		// skip bot posts
+		if(obj[i].bot) continue;
+
+		var card = document.createElement('div');
+		card.className = 'card';
+
+		// card metadata
+		var card_meta = document.createElement('div');
+		card_meta.className = 'card_meta';
+		var author = document.createElement('div');
+		author.className = 'card_author';
+		author.innerHTML = '<div class="card_author_avatar"><img src="' + obj[i].author_img + '"/></div>' + '<div class="card_author_name">' + obj[i].author_name + '</div>';
+		card_meta.appendChild(author);
+		var timestamp = document.createElement('div');
+		timestamp.className = 'card_timestamp';
+		// content time
+		timestamp.innerHTML = obj[i].context_meta.content_relative_time + 'h';
+		// comment time
+		timestamp.innerHTML = obj[i].comment_relative_time + 'h';
+		card_meta.appendChild(timestamp);
+		card.appendChild(card_meta)
+
+		// the premise of the comment
+		var premise = document.createElement('div');
+		premise.className = 'premise';
+		premise.innerHTML = obj[i].text;
+		premise.style.borderColor = theme_color;
+		card.appendChild(premise);
+
+		// the engagement
+		var engagement = document.createElement('div');
+		engagement.className = 'engagement';
+		engagement.innerHTML = '&uarr; ' + obj[i].upvotes + '&nbsp; &nbsp; &nbsp; ' + '&darr; ' + obj[i].downvotes + '&nbsp; &nbsp; &nbsp; ' + '&#10150; ' + obj[i].replies;
+		card.appendChild(engagement);
+
+		// the context (the article)
+		var context = document.createElement('div');
+		context.className = 'context';
+		context.style.fontSize = '10px !important';
+		context.innerHTML = '<a tabindex="-1" href="' + obj[i].context_meta.link + '">'  + '<div class="context_title">' + obj[i].context_meta.title + '</div>' + '<div>' + obj[i].context_meta.vibe_name + '</div>' + '</a>';
+		card.appendChild(context);
+
+		document.body.appendChild(card);
+	}	
+}
+
+function jsonp_parse_comment_list(obj) {
+    var theme_color = COLORS[Math.floor(Math.random() * COLORS.length)];
+	document.body.className = 'vibe_comment_evaluator';
+
+	console.log(obj)
+
+	for(var i = 0; i < obj.length; i++)	{
+		// skip bot posts
+		if(obj[i].bot) continue;
+
+		var card = document.createElement('div');
+		card.className = 'card';
+
+		// card metadata
+		var card_meta = document.createElement('div');
+		card_meta.className = 'card_meta';
+		var author = document.createElement('div');
+		author.className = 'card_author';
+		author.innerHTML = '<div class="card_author_avatar"><img src="' + obj[i].author_img + '"/></div>' + '<div class="card_author_name">' + obj[i].author_name + '</div>';
+		card_meta.appendChild(author);
+		var timestamp = document.createElement('div');
+		timestamp.className = 'card_timestamp';
+		// content time
+		timestamp.innerHTML = obj[i].context_meta.content_relative_time + 'h';
+		// comment time
+		timestamp.innerHTML = obj[i].comment_relative_time + 'h';
+		card_meta.appendChild(timestamp);
+		card.appendChild(card_meta)
+
+		// existing riposte
+		if(false && obj[i].ripostes)	{
+			var riposte = document.createElement('div');
+			riposte.innerHTML = obj[i].ripostes.text;
+			card.appendChild(riposte);
+		}
+
+		// the premise of the comment
+		var premise = document.createElement('div');
+		premise.className = 'premise';
+		premise.innerHTML = obj[i].text;
+		premise.style.borderColor = theme_color;
+		card.appendChild(premise);
+
+		// the engagement
+		var engagement = document.createElement('div');
+		engagement.className = 'engagement';
+		engagement.innerHTML = '&uarr; ' + obj[i].upvotes + '&nbsp; &nbsp; &nbsp; ' + '&darr; ' + obj[i].downvotes + '&nbsp; &nbsp; &nbsp; ' + '&#10150; ' + obj[i].replies;
+		card.appendChild(engagement);
+
+		// the context (the article)
+		var context = document.createElement('div');
+		context.className = 'context';
+		context.style.fontSize = '10px !important';
+		context.innerHTML = '<a tabindex="-1" href="' + obj[i].context_meta.link + '">'  + '<div class="context_title">' + obj[i].context_meta.title + '</div>' + '</a>';
+		card.appendChild(context);
+
+		document.body.appendChild(card);
+	}
 }
 
 function jsonp_parse_vibes(obj)	{
-	console.log(obj);
-
 	ALL_VIBES = obj;
 
 	for(var i = 0; i < ALL_VIBES.length; i++)	{
@@ -184,13 +319,11 @@ function jsonp_parse_vibes(obj)	{
 }
 
 function jsonp_parse_posts(obj) {
-	// console.log(obj);
+	console.log(obj);
 
     var theme_color = COLORS[Math.floor(Math.random() * COLORS.length)];
 
 	for(var i = 0; i < obj.length; i++)	{
-		// console.log(obj[i]);
-
 		var card = document.createElement('div');
 		card.className = 'card';
 
@@ -208,8 +341,14 @@ function jsonp_parse_posts(obj) {
 		// comment time
 		timestamp.innerHTML = obj[i].comment_relative_time + 'h';
 		card_meta.appendChild(timestamp);
-
 		card.appendChild(card_meta)
+
+		// existing riposte
+		if(false && obj[i].ripostes)	{
+			var riposte = document.createElement('div');
+			riposte.innerHTML = obj[i].ripostes.text;
+			card.appendChild(riposte);
+		}
 
 		// the premise of the comment
 		var premise = document.createElement('div');
@@ -221,7 +360,7 @@ function jsonp_parse_posts(obj) {
 		// the context (the article)
 		var context = document.createElement('div');
 		context.className = 'context';
-		context.innerHTML = '<a href="' + obj[i].context_meta.link + '">' + (obj[i].context_meta.img ? ('<img class="context_image" src="' + obj[i].context_meta.img + '"/>') : '') + '<div class="context_title">' + obj[i].context_meta.title + '</div>' + '</a>';
+		context.innerHTML = '<a href="' + obj[i].context_meta.link + '">' + (obj[i].context_meta.img ? ('<img class="context_image" src="' + obj[i].context_meta.img + '"/>') : '') + '<div class="context_title">' + obj[i].context_meta.title + '</div>' + '<div class="context_source">' + obj[i].context_meta.provider + '</div>' + '</a>';
 		card.appendChild(context);
 
 		// the engagement
