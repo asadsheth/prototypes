@@ -394,9 +394,9 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 
 			
 			if($weighted_timestamp_i < $weighted_timestamp_j)	{
-				$tmp = json_encode($msgs[$i]);
-				$msgs[$i] = json_decode(json_encode($msgs[$j]), true);
-				$msgs[$j] = json_decode($tmp, true);
+				$tmp = $msgs[$i];
+				$msgs[$i] = $msgs[$j];
+				$msgs[$j] = $tmp;
 			}
 		}
 	}
@@ -427,9 +427,9 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 			$weighted_timestamp_j = pow(10, max(6 - floor(log($deduped_msgs[$j]['comment_relative_time'] + 1) / log(3)), 0)) + $deduped_msgs[$j]['score'];
 
 			if($weighted_timestamp_i < $weighted_timestamp_j)	{
-				$tmp = json_encode($deduped_msgs[$i]);
-				$deduped_msgs[$i] = json_decode(json_encode($deduped_msgs[$j]), true);
-				$deduped_msgs[$j] = json_decode($tmp, true);
+				$tmp = $deduped_msgs[$i];
+				$deduped_msgs[$i] = $deduped_msgs[$j];
+				$deduped_msgs[$j] = $tmp;
 			}
 		}
 	}
@@ -504,9 +504,9 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 			for($j = 0; $j < count($reps); $j++) {
 				for($k = $j + 1; $k < count($reps); $k++) {
 					if($reps[$j]['score'] < $reps[$k]['score'])	{
-						$tmp = json_encode($reps[$j]);
-						$reps[$j] = json_decode(json_encode($reps[$k]), true);
-						$reps[$k] = json_decode($tmp, true);
+						$tmp = $reps[$j];
+						$reps[$j] = $reps[$k];
+						$reps[$k] = $tmp;
 					}
 				}
 			}
