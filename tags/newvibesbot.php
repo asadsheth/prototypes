@@ -16,7 +16,7 @@ fwrite($logp, '----------------------------' . "\n");
 // configs
 $CACHE_DIR = './caches/';
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
-$DEBUG = false;
+$DEBUG = true;
 $ADDITIONAL_VIBE_PAGES = 0;
 // echo json_encode($ALL_VIBES); exit;
 
@@ -33,12 +33,22 @@ if($DEBUG)	{
 // write all vibes to disk
 file_put_contents($CACHE_DIR . "all_vibes.jsonp", 'jsonp_parse_vibes(' . json_encode($ALL_VIBES) . ');');
 
+function time_weighted_power($age, $base = 3)	{
+	return pow(10, max(6 - floor(log($age + 3) / log(3)), 0));	
+}
+
 // go get the stream
-function curl_stream($vibe_id, $next)	{
+function curl_post_stream($vibe_id, $next)	{
 	// legacy ranking
 	// $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/rankedStream?lang=en-US&region=US';
 	// smart chrono stream_encoding(stream)
 	$url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/smartChronoStream?lang=en-US&region=US';
+	// ntk + main stream
+	// http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/streams/blended
+
+	if($vibe_id == 'NEWSROOM')	{
+		// do something different
+	}
 
 	if(isset($next))	{
 		// get th enext stream
@@ -130,7 +140,7 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	// since we always check remote; this is not needed
 	if(true)	{
 		// get the first 15
-		$object = curl_stream($vibe_id);
+		$object = curl_post_stream($vibe_id);
 		fwrite($logp, 'initial remote count: ' . count($object['items']['result']) . "\n");
 
 		// get the next 15
@@ -144,7 +154,7 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 			$next_token = json_encode($object['meta']['result'][0]);
 			for($recurs = 0; $recurs < $ADDITIONAL_VIBE_PAGES; $recurs++)	{
 				// get the next items
-				$next_obj = (curl_stream($vibe_id, $next_token)); 
+				$next_obj = (curl_post_stream($vibe_id, $next_token)); 
 
 				// add them to the original object
 				for($i = 0; $i < count($next_obj['items']['result']); $i++) {
@@ -389,8 +399,8 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 	// rank the messages by time-wieghted-score
 	for($i = 0; $i < count($msgs); $i++)	{
 		for($j = $i + 1; $j < count($msgs); $j++)  {
-			$weighted_timestamp_i = pow(10, max(6 - floor(log($msgs[$i]['comment_relative_time'] + 1) / log(3)), 0)) + $msgs[$i]['score'];
-			$weighted_timestamp_j = pow(10, max(6 - floor(log($msgs[$j]['comment_relative_time'] + 1) / log(3)), 0)) + $msgs[$j]['score'];
+			$weighted_timestamp_i = time_weighted_power($msgs[$i]['comment_relative_time']) + $msgs[$i]['score'];
+			$weighted_timestamp_j = time_weighted_power($msgs[$j]['comment_relative_time']) + $msgs[$j]['score'];
 
 			
 			if($weighted_timestamp_i < $weighted_timestamp_j)	{
@@ -423,8 +433,8 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 	// resort this thing based on comment timestamp
 	for($i = 0; $i < count($deduped_msgs); $i++)	{
 		for($j = $i + 1; $j < count($deduped_msgs); $j++)  {
-			$weighted_timestamp_i = pow(10, max(6 - floor(log($deduped_msgs[$i]['comment_relative_time'] + 1) / log(3)), 0)) + $deduped_msgs[$i]['score'];
-			$weighted_timestamp_j = pow(10, max(6 - floor(log($deduped_msgs[$j]['comment_relative_time'] + 1) / log(3)), 0)) + $deduped_msgs[$j]['score'];
+			$weighted_timestamp_i = time_weighted_power($deduped_msgs[$i]['comment_relative_time']) + $msgs[$i]['score'];
+			$weighted_timestamp_j = time_weighted_power($deduped_msgs[$j]['comment_relative_time']) + $msgs[$j]['score'];
 
 			if($weighted_timestamp_i < $weighted_timestamp_j)	{
 				$tmp = $deduped_msgs[$i];
@@ -522,8 +532,8 @@ fwrite($logp, '= starting to re-sort all comments' . "\n");
 // resort all comments by timestamp-weighted-score
 for($i = 0; $i < count($every_single_comment); $i++)	{
 	for($j = $i + 1; $j < count($every_single_comment); $j++)	{
-		$weighted_timestamp_i = pow(10, max(6 - floor(log($every_single_comment[$i]['comment_relative_time'] + 1) / log(3)), 0)) + $every_single_comment[$i]['score'];
-		$weighted_timestamp_j = pow(10, max(6 - floor(log($every_single_comment[$j]['comment_relative_time'] + 1) / log(3)), 0)) + $every_single_comment[$j]['score'];
+		$weighted_timestamp_i = time_weighted_power($every_single_comment[$i]['comment_relative_time']) + $every_single_comment[$i]['score'];
+		$weighted_timestamp_j = time_weighted_power($every_single_comment[$j]['comment_relative_time']) + $every_single_comment[$j]['score'];
 
 		// echo "age:\t" . $every_single_comment[$j]['comment_relative_time'] . "\ntimestamp:\t" . $weighted_timestamp_j . "\n";;
 
