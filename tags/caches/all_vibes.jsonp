@@ -1,1 +1,1 @@
-jsonp_parse_vibes([{"name":"Finance","id":"338950e1-cae3-359e-bfa3-af403b69d694"},{"name":"Deep Learning","id":"26680209-25eb-3186-ad86-033a8af16364"},{"name":"Health Care Reform","id":"a0d7935a-b327-11e5-bc1e-fa163e6f4a7e"},{"name":"Sports","id":"5c839b50-00d3-37e8-a68f-7c03c48d7104","slackhook":"https:\/\/hooks.slack.com\/services\/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"},{"name":"Astronomy","id":"28d52c31-89c5-330f-9d52-61eec9fa77cc"}]);
+jsonp_parse_vibes([{"name":"Finance","id":"338950e1-cae3-359e-bfa3-af403b69d694"},{"name":"@Megastream","id":"@MEGASTREAM"}]);

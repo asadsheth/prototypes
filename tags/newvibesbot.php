@@ -17,16 +17,13 @@ fwrite($logp, '----------------------------' . "\n");
 $CACHE_DIR = './caches/';
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
 $DEBUG = true;
-$ADDITIONAL_VIBE_PAGES = 0;
+$ADDITIONAL_VIBE_PAGES = 1;
 // echo json_encode($ALL_VIBES); exit;
 
 if($DEBUG)	{
 	$ALL_VIBES = array(
 		array( 'name' => 'Finance', 'id' => '338950e1-cae3-359e-bfa3-af403b69d694' ),
-		array( 'name' => 'Deep Learning', 'id' => '26680209-25eb-3186-ad86-033a8af16364' ),
-		array( 'name' => 'Health Care Reform', 'id' => 'a0d7935a-b327-11e5-bc1e-fa163e6f4a7e'),
-		array( 'name' => 'Sports', 'id' => '5c839b50-00d3-37e8-a68f-7c03c48d7104', 'slackhook' => 'https://hooks.slack.com/services/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' ),
-		array( 'name' => 'Astronomy', 'id' => '28d52c31-89c5-330f-9d52-61eec9fa77cc' )	
+		array( 'name' => '@Megastream', 'id' => '@MEGASTREAM' ),
 	);
 }
 
@@ -35,6 +32,69 @@ file_put_contents($CACHE_DIR . "all_vibes.jsonp", 'jsonp_parse_vibes(' . json_en
 
 function time_weighted_power($age, $base = 3)	{
 	return pow(10, max(6 - floor(log($age + 3) / log(3)), 0));	
+}
+
+function get_uuid_to_vibes($all_comments)	{
+	$obj = $all_comments;
+	$uuid_to_vibes = array();
+
+	for($i = 0; $i < count($obj); $i++)	{
+		$uuid = $obj[$i]['context_meta']['content_id'];
+		$guid = $obj[$i]['author_guid'];
+		$vibe_name = $obj[$i]['context_meta']['vibe_name'];
+		$vibe_id = $obj[$i]['context_meta']['vibe_id'];
+
+		// skip our special vibes
+		if($vibe_id != '@MEGASTREAM') {
+			array_push($uuids[$uuid], $obj[$i]);
+
+			// build the article to vibe mapping
+			if(!isset($uuid_to_vibes[$uuid]))	{
+				$uuid_to_vibes[$uuid] = array();
+			}
+			$uuid_to_vibes[$uuid][$vibe_id] = $vibe_name;
+		}
+	}
+
+	return $uuid_to_vibes;
+}
+
+function derive_multi_posters($all_comments)	{
+	$obj = $all_comments;
+	$authors = array();
+
+	for($i = 0; $i < count($obj); $i++)	{
+		$uuid = $obj[$i]['context_meta']['content_id'];
+		$guid = $obj[$i]['author_guid'];
+		$vibe_name = $obj[$i]['context_meta']['vibe_name'];
+		$vibe_id = $obj[$i]['context_meta']['vibe_id'];
+
+		// skip our special vibes
+		if($vibe_id != '@MEGASTREAM') {
+			// build a map of uuids with comments by author
+			if($guid != '1')	{
+				if(!isset($authors[$guid]))	{
+					$authors[$guid] = array();
+				}
+
+				$authors[$guid][$uuid] = true;
+			}
+		}
+	}
+
+	// go through and identify all the authors with multiple contributions
+	$multi_poster_guids = array();
+	foreach($authors as $guid => $bunch)	{
+		$uuid_count = 0;
+		foreach($bunch as $uuid)	{
+			// echo $guid . ':' . $uuid . "\n";
+			$uuid_count++;
+		}
+		
+		if($uuid_count > 1) array_push($multi_poster_guids, $guid);
+	}
+
+	return $multi_poster_guids;	
 }
 
 // go get the stream
@@ -46,8 +106,9 @@ function curl_post_stream($vibe_id, $next)	{
 	// ntk + main stream
 	// http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/streams/blended
 
-	if($vibe_id == 'NEWSROOM')	{
+	if($vibe_id == '@MEGASTREAM')	{
 		// do something different
+		$url = 	'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/streams/blended';
 	}
 
 	if(isset($next))	{
@@ -99,6 +160,19 @@ function curl_post_stream($vibe_id, $next)	{
 	    continue;
 	}
 
+	// special handling for the first NTK page
+	if($vibe_id == '@MEGASTREAM')	{
+		// filter out non-post items
+		$posts = array();
+		for($i = 0; $i < count($object['items']['result']); $i++)	{
+			if($object['items']['result'][$i]['type'] == 'post')	{
+				array_push($posts, $object['items']['result'][$i]);
+			}
+		}
+
+		$object['items']['result'] = $posts;
+	}
+
 	return $object; 
 }
 
@@ -141,6 +215,7 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	if(true)	{
 		// get the first 15
 		$object = curl_post_stream($vibe_id);
+
 		fwrite($logp, 'initial remote count: ' . count($object['items']['result']) . "\n");
 
 		// get the next 15
@@ -411,11 +486,15 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 		}
 	}
 
-	// write the comments themselves just in case
+	// write the full set of comments for this vibe
 	file_put_contents($CACHE_DIR . "c_$vibe_id.json", json_encode($msgs));
 	file_put_contents($CACHE_DIR . "c_full_$vibe_id.jsonp", 'jsonp_parse_comment_list(' .json_encode($msgs) . ');');
+
 	// add em all to our full tracker
-	$every_single_comment = array_merge($every_single_comment, $msgs);
+	// skip our special vibes
+	if($vibe_id != '@MEGASTREAM') {
+		$every_single_comment = array_merge($every_single_comment, $msgs);
+	}
 
 	// spit out a jsonp for this vibe; only one comment per post
 	$seen_posts = array();
@@ -546,6 +625,9 @@ for($i = 0; $i < count($every_single_comment); $i++)	{
 
 	// echo 'sorted ' . $i . " of " . count($every_single_comment) . "\n";
 }
+
+$multi_posters = (derive_multi_posters($every_single_comment));
+$uuid_to_vibes = (get_uuid_to_vibes($every_single_comment));
 
 file_put_contents($CACHE_DIR . "c_allvibes.jsonp", 'jsonp_parse_all_comments(' . json_encode($every_single_comment) . ')'); 
 file_put_contents($CACHE_DIR . "c_allvibes.json", json_encode($every_single_comment)); 
