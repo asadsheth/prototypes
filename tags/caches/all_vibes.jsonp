@@ -1,1 +1,1 @@
-jsonp_parse_vibes([{"name":"Finance","id":"338950e1-cae3-359e-bfa3-af403b69d694"},{"name":"@Megastream","id":"@MEGASTREAM"}]);
+jsonp_parse_vibes([{"name":"@Megastream","id":"@MEGASTREAM"},{"name":"Finance","id":"338950e1-cae3-359e-bfa3-af403b69d694"}]);

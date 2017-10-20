@@ -17,13 +17,13 @@ fwrite($logp, '----------------------------' . "\n");
 $CACHE_DIR = './caches/';
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
 $DEBUG = true;
-$ADDITIONAL_VIBE_PAGES = 1;
+$ADDITIONAL_VIBE_PAGES = 4;
 // echo json_encode($ALL_VIBES); exit;
 
 if($DEBUG)	{
 	$ALL_VIBES = array(
-		array( 'name' => 'Finance', 'id' => '338950e1-cae3-359e-bfa3-af403b69d694' ),
 		array( 'name' => '@Megastream', 'id' => '@MEGASTREAM' ),
+		array( 'name' => 'Finance', 'id' => '338950e1-cae3-359e-bfa3-af403b69d694' )
 	);
 }
 
@@ -32,6 +32,23 @@ file_put_contents($CACHE_DIR . "all_vibes.jsonp", 'jsonp_parse_vibes(' . json_en
 
 function time_weighted_power($age, $base = 3)	{
 	return pow(10, max(6 - floor(log($age + 3) / log(3)), 0));	
+}
+
+function reddit_score($uv, $dv, $reports) {
+	$r = $reports;
+	// cheat downvotes up for reports and 5 static
+	$dv = $dv + 10 * $r + 5;
+	$n = $uv + $dv;
+	if($n == 0)	{ $score = 0; } else {
+		$z = 1.281551565545;
+		$p = $uv / $n;
+		$left = $p + 1/(2*$n)*$z*$z;
+		$right = $z*sqrt($p*(1-$p)/$n + $z*$z/(4*$n*$n));
+		$under = 1+1/$n*$z*$z;
+		$score = ($left + $right) / $under;
+	}
+
+	return $score;
 }
 
 function get_uuid_to_vibes($all_comments)	{
@@ -101,7 +118,7 @@ function derive_multi_posters($all_comments)	{
 function curl_post_stream($vibe_id, $next)	{
 	// legacy ranking
 	// $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/rankedStream?lang=en-US&region=US';
-	// smart chrono stream_encoding(stream)
+	// smart chrono stream
 	$url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/smartChronoStream?lang=en-US&region=US';
 	// ntk + main stream
 	// http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/streams/blended
@@ -393,22 +410,7 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 			$message_context_id = $messages[$j]['contextId'];
 			$message_context_meta = json_decode(json_encode($posts[$i]), true);
 			$message_created_at = $messages[$j]['meta']['createdAt'];
-
-			// reddit score
-	    	$r = $message_reports;
-	    	$uv = $message_upvotes;
-	    	$dv = $message_downvotes;
-	    	// cheating downvotes by adding 10x the report count to penalize reported comments and 5 downvotes to underweight new comments
-	    	$dv = $message_downvotes + 10 * $r + 5;
-	    	$n = $uv + $dv;
-	    	if($n == 0)	{ $score = 0; } else {
-	    		$z = 1.281551565545;
-	    		$p = $uv / $n;
-				$left = $p + 1/(2*$n)*$z*$z;
-				$right = $z*sqrt($p*(1-$p)/$n + $z*$z/(4*$n*$n));
-				$under = 1+1/$n*$z*$z;
-				$score = ($left + $right) / $under;
-	    	}
+			$score = reddit_score($message_upvotes, $message_downvotes, $message_reports);
 
 			$msg = array(
 				'text' => $message_text,
@@ -486,55 +488,19 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 		}
 	}
 
-	// write the full set of comments for this vibe
-	file_put_contents($CACHE_DIR . "c_$vibe_id.json", json_encode($msgs));
-	file_put_contents($CACHE_DIR . "c_full_$vibe_id.jsonp", 'jsonp_parse_comment_list(' .json_encode($msgs) . ');');
-
-	// add em all to our full tracker
-	// skip our special vibes
-	if($vibe_id != '@MEGASTREAM') {
-		$every_single_comment = array_merge($every_single_comment, $msgs);
-	}
-
-	// spit out a jsonp for this vibe; only one comment per post
-	$seen_posts = array();
-	$deduped_msgs = array();
+	// go through what we've got now and figure out the reply situation
 	for($i = 0; $i < count($msgs); $i++)	{
-		if(!isset($seen_posts[$msgs[$i]['context_meta']['post_id']]))	{
-			$seen_posts[$msgs[$i]['context_meta']['post_id']] = true;
-			array_push($deduped_msgs, $msgs[$i]);
-		}
-		else {
-			// let's move on, we're covered here already
-		}
-	}
-
-	// resort this thing based on comment timestamp
-	for($i = 0; $i < count($deduped_msgs); $i++)	{
-		for($j = $i + 1; $j < count($deduped_msgs); $j++)  {
-			$weighted_timestamp_i = time_weighted_power($deduped_msgs[$i]['comment_relative_time']) + $msgs[$i]['score'];
-			$weighted_timestamp_j = time_weighted_power($deduped_msgs[$j]['comment_relative_time']) + $msgs[$j]['score'];
-
-			if($weighted_timestamp_i < $weighted_timestamp_j)	{
-				$tmp = $deduped_msgs[$i];
-				$deduped_msgs[$i] = $deduped_msgs[$j];
-				$deduped_msgs[$j] = $tmp;
-			}
-		}
-	}
-
-	// go through what we've got left and figure out the reply situation
-	for($i = 0; $i < count($deduped_msgs); $i++)	{
 		if(
-			$deduped_msgs[$i]['message_id'] == '?'
-			|| $deduped_msgs[$i]['replies'] == '0'
+			$msgs[$i]['message_id'] == '?'
+			|| $msgs[$i]['replies'] < 3
+			|| $msgs[$i]['score'] < 0.85	
 		) {
-			// oops, this one is not a user comment
+			// oops, this one is not a user comment orrr it has no replies or it sucks
 			continue;
 		}
 		else {
-			$replies_obj = curl_canvass_replies($deduped_msgs[$i]['context_id'], $deduped_msgs[$i]['message_id']);
-
+			fwrite($logp, $vibe_name . ': working on comment requests for message #' . $i . ' of ' . count($msgs) . "\n");
+			$replies_obj = curl_canvass_replies($msgs[$i]['context_id'], $msgs[$i]['message_id']);
 			$reply_list = $replies_obj['canvassReplies'];
 
 			// parse replies out
@@ -551,22 +517,7 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 				$reply_context_id = $reply_list[$j]['contextId'];
 				// $reply_context_meta = json_decode(json_encode($posts[$i]), true);
 				$reply_created_at = $reply_list[$j]['meta']['createdAt'];
-
-				// reddit score
-		    	$r = $reply_reports;
-		    	$uv = $reply_upvotes;
-		    	$dv = $reply_downvotes;
-		    	// cheating downvotes by adding 10x the report count to penalize reported comments and 5 downvotes to underweight new comments
-		    	$dv = $reply_downvotes + 10 * $r + 5;
-		    	$n = $uv + $dv;
-		    	if($n == 0)	{ $score = 0; } else {
-		    		$z = 1.281551565545;
-		    		$p = $uv / $n;
-					$left = $p + 1/(2*$n)*$z*$z;
-					$right = $z*sqrt($p*(1-$p)/$n + $z*$z/(4*$n*$n));
-					$under = 1+1/$n*$z*$z;
-					$score = ($left + $right) / $under;
-		    	}
+				$score = reddit_score($reply_upvotes, $reply_downvotes, $reply_reports);
 
 				$msg = array(
 					'text' => $reply_text,
@@ -600,7 +551,44 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 				}
 			}
 
-			$deduped_msgs[$i]['ripostes'] = $reps[0];
+			$msgs[$i]['ripostes'] = $reps[0];
+		}
+	}
+
+
+	// write the full set of comments for this vibe
+	file_put_contents($CACHE_DIR . "c_$vibe_id.json", json_encode($msgs));
+	file_put_contents($CACHE_DIR . "c_full_$vibe_id.jsonp", 'jsonp_parse_comment_list(' .json_encode($msgs) . ');');
+
+	// add em all to our full tracker
+	// skip our special vibes
+	if($vibe_id != '@MEGASTREAM') {
+		$every_single_comment = array_merge($every_single_comment, $msgs);
+	}
+
+	// spit out a jsonp for this vibe; only one comment per post
+	$seen_posts = array();
+	$deduped_msgs = array();
+	for($i = 0; $i < count($msgs); $i++)	{
+		if(!isset($seen_posts[$msgs[$i]['context_meta']['post_id']]))	{
+			$seen_posts[$msgs[$i]['context_meta']['post_id']] = true;
+			array_push($deduped_msgs, $msgs[$i]);
+		}
+		else {
+			// let's move on, we're covered here already
+		}
+	}
+	// resort this thing based on comment timestamp
+	for($i = 0; $i < count($deduped_msgs); $i++)	{
+		for($j = $i + 1; $j < count($deduped_msgs); $j++)  {
+			$weighted_timestamp_i = time_weighted_power($deduped_msgs[$i]['comment_relative_time']) + $msgs[$i]['score'];
+			$weighted_timestamp_j = time_weighted_power($deduped_msgs[$j]['comment_relative_time']) + $msgs[$j]['score'];
+
+			if($weighted_timestamp_i < $weighted_timestamp_j)	{
+				$tmp = $deduped_msgs[$i];
+				$deduped_msgs[$i] = $deduped_msgs[$j];
+				$deduped_msgs[$j] = $tmp;
+			}
 		}
 	}
 
