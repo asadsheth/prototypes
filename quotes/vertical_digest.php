@@ -137,7 +137,7 @@
             font-family: sans-serif;
         }
         .i_contentbody h1, h2 {
-        	margin-bottom: 0;
+        	margin: 0;
         }
         .i_contentbody .provider_attribution	{
         	font-size: 12px;
