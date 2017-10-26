@@ -16,8 +16,8 @@ fwrite($logp, '----------------------------' . "\n");
 // configs
 $CACHE_DIR = './caches/';
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
-$DEBUG = false;
-$ADDITIONAL_VIBE_PAGES = 2;
+$DEBUG = true;
+$ADDITIONAL_VIBE_PAGES = 5;
 // echo json_encode($ALL_VIBES); exit;
 
 if($DEBUG)	{

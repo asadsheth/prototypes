@@ -43,8 +43,8 @@ for($i = 0; $i < count($object['items']['result']) && $i < $NUM_TRENDING_POSTS; 
     $author = $obj['author']['name'];
     $lead_attribution = $obj['leadAttribution'];
     $link = $obj['content']['url'];
-    // $img = $obj['content']['images'][0]['originalUrl'];
-    $img = $obj['content']['images'][0]['resolutions'][0]['url'];
+    $img = $obj['content']['images'][0]['originalUrl'];
+    // $img = $obj['content']['images'][0]['resolutions'][0]['url'];
     $title = $obj['content']['title'];
     $summary = $obj['content']['summary'];
     $published_at = $obj['publishedAt'];
@@ -392,41 +392,6 @@ $speaker_string = substr($speaker_string, 0, strlen($speaker_string) - 2);
     </style>
 </head>
 <body>
-	<div id="ftux" style="
-	    position: absolute;
-	    top: 0;
-	    right: 0;
-	    z-index: 100;
-	    height:  <?php echo $IMAGE_HEIGHT; ?>px;
-	    background: black;
-	    line-height: <?php echo $IMAGE_HEIGHT; ?>px;
-	    color: white;
-	    font-weight: bold;
-	    padding: 0;
-	    width: 25%;
-	    text-align: center;
-	    opacity: 0;
-	    transition-duration: 0.5s;
-	    background: -webkit-linear-gradient(left, rgba(0,0,0,0), black);
-	">&nbsp; &rarr;</div>
-    <div id="prog" 
-        style="
-            position: absolute;
-            top: 0px;
-            left: 0px;
-            z-index: 100;
-            height: 5px;
-            line-height: 5px;
-            color: transparent;
-            font-weight: bold;
-            padding: 0px;
-            width: 0%;
-            text-align: center;
-            opacity: 1;
-            transition-duration: <?php echo $SLIDE_DURATION; ?>s;
-            transition-timing-function: linear;
-            background: rgba(255,255,255,0.5);
-        ">&nbsp; →</div>    
     <div id="stage"></div>
 </body>
 
@@ -493,7 +458,7 @@ var paginate = function(move_forward) {
 
 document.addEventListener("mousemove", function(event) {
     // console.log(((document.body.offsetWidth / 2) - event.pageX) / (document.body.offsetWidth / 2));
-    var x_scaler = 0.25 * ((document.body.offsetWidth / 2) - event.pageX) / (document.body.offsetWidth / 2);
+    var x_scaler = 0.125 * ((document.body.offsetWidth / 2) - event.pageX) / (document.body.offsetWidth / 2);
     var y_scaler = ((document.documentElement.clientHeight / 2) - event.pageY) / (document.documentElement.clientHeight / 2);
     y_scaler = 0;
     // console.log(y_scaler)

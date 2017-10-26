@@ -340,6 +340,10 @@ function jsonp_parse_comment_list(obj) {
 	for(var i = 0; i < obj.length; i++)	{
 		// skip bot posts
 		if(obj[i].bot) continue;
+		if(
+			window.location.href.indexOf('threadsonly') > -1
+			&& !obj[i].ripostes
+		) continue;
 		// the card
 		var card = document.createElement('div');
 		card.className = 'card';
