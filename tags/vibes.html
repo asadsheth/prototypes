@@ -86,6 +86,9 @@ div.card_timestamp {
 div.premise {
 	padding: 0px 0px 0px 00px;
 	margin: 20px 20px;
+	border-radius: 15px;
+	background: linear-gradient(#eee, #ddd);
+	padding: 15px;
 	/*border-left: 5px solid purple;*/
 }
 
@@ -199,10 +202,15 @@ var create_prompt = function(prompt_obj, theme_color) {
 	card_meta.appendChild(timestamp);
 	prompt.appendChild(card_meta)
 	// the premise of the comment
-	var premise = document.createElement('div');
-	premise.className = 'premise';
-	premise.innerHTML = prompt_obj.text;
-	prompt.appendChild(premise);
+	if(prompt_obj.bot)	{
+		// no!
+	}
+	else {
+		var premise = document.createElement('div');
+		premise.className = 'premise';
+		premise.innerHTML = prompt_obj.text;
+		prompt.appendChild(premise);
+	}
 	// engagement
 	prompt.appendChild(create_engagement_meta(prompt_obj));
 
@@ -248,7 +256,7 @@ var create_engagement_meta = function(engagement_obj)	{
 	return engagement;
 }
 
-var create_context = function(context_obj, verbose)	{
+var create_context = function(context_obj, verbose, theme_color)	{
 	if(verbose)	{
 		var context = document.createElement('div');
 		context.className = 'context';
@@ -260,7 +268,12 @@ var create_context = function(context_obj, verbose)	{
 		context.className = 'context';
 		context.style.background = '#eee';
 		context.style.padding = '10px';
-		context.innerHTML = '<div style="margin-left: 20px">' + context_obj.context_meta.vibe_name + '</div>' + '<a tabindex="-1" href="' + context_obj.context_meta.link + '">'  + '<div class="context_title" style="font-size: 16px !important; margin-top: 10px !important; margin-bottom: 10px !important">' + context_obj.context_meta.title + '</div>' + '<div style="margin-left: 20px">' + context_obj.context_meta.provider + '</div>' + '</a>';
+		context.innerHTML = '<div style="margin-left: 20px">' + context_obj.context_meta.vibe_name + ' &bull; ' + context_obj.context_meta.provider + ' &bull; ' + context_obj.context_meta.content_relative_time + 'h</div>' + '<a tabindex="-1" href="' + context_obj.context_meta.link + '">'  + '<div class="context_title" style="font-size: 16px !important; margin-top: 10px !important; margin-bottom: 10px !important">' + context_obj.context_meta.title + '</div>' + '</a>';
+	}
+
+	if(theme_color) {
+		context.style.background = theme_color;
+		context.style.color = '#fff';
 	}
 
 	return context;
@@ -311,7 +324,7 @@ function jsonp_parse_all_comments(obj) {
 			card.appendChild(create_riposte(obj[i].ripostes));
 		}		
 		// the context
-		card.appendChild(create_context(obj[i]));
+		card.appendChild(create_context(obj[i], false, theme_color));
 
 		document.body.appendChild(card);
 	}	
@@ -337,7 +350,7 @@ function jsonp_parse_comment_list(obj) {
 			card.appendChild(create_riposte(obj[i].ripostes));
 		}		
 		// the context (the article)
-		card.appendChild(create_context(obj[i]));
+		card.appendChild(create_context(obj[i], false, theme_color));
 
 		document.body.appendChild(card);
 	}

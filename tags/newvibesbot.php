@@ -16,8 +16,8 @@ fwrite($logp, '----------------------------' . "\n");
 // configs
 $CACHE_DIR = './caches/';
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
-$DEBUG = true;
-$ADDITIONAL_VIBE_PAGES = 4;
+$DEBUG = false;
+$ADDITIONAL_VIBE_PAGES = 2;
 // echo json_encode($ALL_VIBES); exit;
 
 if($DEBUG)	{
@@ -27,11 +27,13 @@ if($DEBUG)	{
 	);
 }
 
-// write all vibes to disk
+// write the vibe list to disk
 file_put_contents($CACHE_DIR . "all_vibes.jsonp", 'jsonp_parse_vibes(' . json_encode($ALL_VIBES) . ');');
 
-function time_weighted_power($age, $base = 3)	{
-	return pow(10, max(6 - floor(log($age + 3) / log(3)), 0));	
+// get the base weight (a power of 2 here) for each story
+function time_weighted_power($age, $base = 2)	{
+	$exponent = max(10 - floor(log($age + 1) / log($base)), 0);
+	return pow(2, $exponent);	
 }
 
 function reddit_score($uv, $dv, $reports) {
@@ -193,7 +195,7 @@ function curl_post_stream($vibe_id, $next)	{
 	return $object; 
 }
 
-// go get the stream
+// go get the replies for a given a
 function curl_canvass_replies($context_id, $message_id)	{
 	$reply_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/' . $context_id . '/messages/' . $message_id . '/replies?region=US&lang=en-US&count=50';
 

@@ -550,7 +550,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
         // what do you do after this
         var i_upnext = document.createElement('div');
         i_upnext.className = 'up_next';
-        i_upnext.innerHTML = '<a class="more" style="background: ' + theme_color + '" href="' + stories[i].contentUrl + '">read more &raquo;</a>';
+        i_upnext.innerHTML = '<a class="more" target="_blank" style="background: ' + theme_color + '" href="' + stories[i].contentUrl + '">read more &raquo;</a>';
         // add the what you do after this
         i_contentbody.appendChild(i_upnext);
 

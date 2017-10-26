@@ -7,10 +7,15 @@
 
 $vibes = file('tmp.csv');
 
-echo 'Vibe ID' . "\t" . 'Vibe Name' . "\t" . 'Uniques' . "\t" . 'Followers' . "\t" . 'Views (Week)' . "\n";
+echo 'Vibe ID' . "\t" . 'Vibe Name' . "\t" . 'Uniques' . "\t" . 'Followers' . "\t" . 'Views' . "\t" . 'Clicks' . "\n";
 
 $vibe_array = array();
 for($i = 1; $i < count($vibes); $i++) {
+	// check if it's the hardcoded ad vibe
+	if(strstr($vibes[$i], '56de0eb1-eba6-37d0-a00b-866ade60374f')) continue;
+	// check for other vibe ad stuff
+	if(strstr($vibes[$i], '/ad')) continue;
+
 	$vibe_info = explode(',', trim($vibes[$i]));
 
 	try {
@@ -29,12 +34,13 @@ for($i = 1; $i < count($vibes); $i++) {
 			$vibe_uniques = $vibe_info[1];
 			$vibe_subs = $obj['topics']['result'][0]['userSubscriberCount'];
 			$vibe_views = $vibe_info[2];
+			$vibe_clicks = $vibe_info[3];
 
-			echo $vibe_id . "\t" . $vibe_name . "\t" . $vibe_uniques . "\t" . $vibe_subs . "\t" . $vibe_views ."\n";
+			echo $vibe_id . "\t" . $vibe_name . "\t" . $vibe_uniques . "\t" . $vibe_subs . "\t" . $vibe_views . "\t" . $vibe_clicks . "\n";
 			// echo 'array( \'name\' => \'' . $vibe_name . '\', \'id\' => \'' . $vibe_id . '\' ),' . "\n";
 		}
 		else {
-			echo $vibe_info[0] . "\t" . '?' . "\t" . $vibe_info[1] . "\t" .  '?' . "\t"  . $vibe_info[2] . "\n";
+			echo $vibe_info[0] . "\t" . '?' . "\t" . $vibe_info[1] . "\t" .  '?' . "\t"  . $vibe_info[2] . "\t" . $vibe_info[3] . "\n";
 		}
 	} catch(Exception $e) {
 		continue;
