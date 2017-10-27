@@ -231,7 +231,6 @@ $speaker_string = substr($speaker_string, 0, strlen($speaker_string) - 2);
 
 ?>
 <html lang="en" prefix="og: http://ogp.me/ns#">
-<!-- warning: adding DOCTYPE breaks 'tap left to go back' on mobile -->
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <meta property="og:title" content="Quotes of the Day - <?php echo date('l\, F jS'); ?>" />
@@ -240,13 +239,64 @@ $speaker_string = substr($speaker_string, 0, strlen($speaker_string) - 2);
     <meta property="og:type" content="website" />
     <meta property="og:description" content="A quick recap of today's news through the lens of what newsmakers are saying. In this edition: <?php echo $speaker_string; ?>" />
     <meta charset="utf-8">
-    <title>Quotes of the Day - <?php echo date('l\, F jS'); ?></title>
+    <title><?php echo date('l\, F jS'); ?></title>
     <style type="text/css">
+/*https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Regular.eot
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-ExtraLight.woff2
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/All_Fonts.html
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Semibold.woff
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Black.woff2
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Semibold.eot
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-ExtraBold.eot
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Italic.eot
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/fonts.css
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Semibold.woff2
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Black.eot
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-ExtraLight.eot
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Black.woff
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Bold.woff
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-ExtraLight.woff
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-ExtraBold.woff2
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/_How_To_Install_Web_Fonts.html
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Bold.eot
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-ExtraBold.woff
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Light.eot
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Light.woff
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Regular.woff
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Medium.woff
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Italic.woff
+https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Italic.woff2*/
+        @font-face{
+            font-family: "Yahoo-Sans";
+            src: url('https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Regular.woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face{
+            font-family: "Yahoo-Sans";
+            src: url('https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Light.woff2');
+            font-weight: lighter;
+            font-style: normal;
+        }
+        @font-face{
+            font-family: "Yahoo-Sans";
+            src: url('https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Medium.woff2');
+            font-weight: medium;
+            font-style: normal;
+        }
+        @font-face{
+            font-family: "Yahoo-Sans";
+            src: url('https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-Bold.woff2');
+            font-weight: bold;
+            font-style: normal;
+        }
+
         img { width: 100%; }
         body {
             margin: 0; padding: 0;
             overflow-x: hidden;
             background: #ddd;
+            font-family: "Yahoo-Sans";
         }
         #stage {
             margin: 0; padding: 0;
@@ -270,12 +320,16 @@ $speaker_string = substr($speaker_string, 0, strlen($speaker_string) - 2);
         }
         .i_photograph {
             position: relative;
+            transition-duration: 0.5s;
+            transition-timing-function: linear;
             width: 130%;
             margin-left: -15%;
             top: 0px;
             left: 0px;
             background-size: cover;
             background-position: center;
+            /*height: 130%;*/
+            /*margin-top: -5%;*/
         }
         .i_shade {
             width: 100%;
@@ -301,13 +355,12 @@ $speaker_string = substr($speaker_string, 0, strlen($speaker_string) - 2);
             left: 5%;
             color: white;
             width: 90%;
-            font-family: sans-serif;
         }
         .i_message .quote   {
             display: block;
             text-align: left;
             font-size: 18pt;
-            font-weight: bold;
+            font-weight: normal;
         }
 
         .i_message .source  {
@@ -323,7 +376,6 @@ $speaker_string = substr($speaker_string, 0, strlen($speaker_string) - 2);
             padding: 15px 20px 15px 20px;
             background: white;
             color: black;
-            font-family: sans-serif;
         }
         .i_contentbody h1, h2 {
             margin: 0;
@@ -340,7 +392,7 @@ $speaker_string = substr($speaker_string, 0, strlen($speaker_string) - 2);
             margin-top: 20px;
         }
         .i_contentbody a.more {
-            font-weight: bold;
+            font-weight: normal;
             text-decoration: none;
             padding: 10px;
             margin: 10px 0;
@@ -435,41 +487,6 @@ var colors = [
     'rebeccapurple'
 ];
 
-var paginate = function(move_forward) {
-    if(move_forward)    {
-        if (current_index == stories.length - 1) return;
-        current_index++;
-    }
-    else {
-        if (current_index == 0) return;
-        current_index--;
-    }
-    /*
-    // if we want to transform individual items
-    var thingers = document.getElementById('stage').childNodes;
-    for(var i = 0; i < thingers.length && false; i++)    {
-        var corrective = ((-1 * i - current_index));
-        // thingers[i].style.transform = 'translate3d(' + (i * 100) + '%, 0px, ' + (corrective * -50) + 'px) rotateY(' + (corrective * -10) + 'deg)';;
-        // thingers[i].style.opacity = (current_index == (-1 * i)) ? 1 : 0;
-    }
-    */
-    document.getElementById('stage').style.transform = 'translate(-' + (current_index * 100) + '%)';
-};
-
-document.addEventListener("mousemove", function(event) {
-    // console.log(((document.body.offsetWidth / 2) - event.pageX) / (document.body.offsetWidth / 2));
-    var x_scaler = 0.125 * ((document.body.offsetWidth / 2) - event.pageX) / (document.body.offsetWidth / 2);
-    var y_scaler = ((document.documentElement.clientHeight / 2) - event.pageY) / (document.documentElement.clientHeight / 2);
-    y_scaler = 0;
-    // console.log(y_scaler)
-
-    var imgs = document.getElementsByClassName('i_photograph');
-    for(var i = 0; i < imgs.length; i++)    {
-        // imgs[i].style.transform = 'translateX(' + (x_scaler * 100) + 'px) translateY(' + (y_scaler * 100) + 'px) scale(' + (1 + Math.abs(x_scaler)) + ')';
-        imgs[i].style.transform = 'translateX(' + (x_scaler * 100) + 'px) ' + 'translateY(' + (y_scaler * 100) + 'px) ' + 'rotateY(' + (x_scaler * -3) + 'deg)';
-    }
-});
-
 document.addEventListener("DOMContentLoaded", function(event) {
     // paint each story
     var theme_seed = Math.floor(Math.random() * colors.length);
@@ -515,7 +532,10 @@ document.addEventListener("DOMContentLoaded", function(event) {
         // what do you do after this
         var i_upnext = document.createElement('div');
         i_upnext.className = 'up_next';
-        i_upnext.innerHTML = '<a class="more" target="_blank" style="background: ' + theme_color + '" href="' + stories[i].contentUrl + '">read more &raquo;</a>';
+        i_upnext.innerHTML = '<a class="more" style="background: ' + theme_color + '" href="' + stories[i].contentUrl + '">read more &raquo;</a>';
+        i_upnext.firstChild.onclick = function() {
+            this.innerHTML = 'loading&hellip;'
+        }
         // add the what you do after this
         i_contentbody.appendChild(i_upnext);
 
@@ -527,17 +547,36 @@ document.addEventListener("DOMContentLoaded", function(event) {
     dom_content_loaded = true;
 });
 
+PREV_X_SCALER = 0; PREV_Y_SCALER = 0; SCALER_IMAGES = null;
 function handleOrientation(event) {
-  var absolute = event.absolute;
-  var alpha    = event.alpha;
-  var beta     = event.beta;
-  var gamma    = event.gamma;
-  console.log(event);
+    if(SCALER_IMAGES)   {
+        // ?
+    }
+    else {
+        SCALER_IMAGES = document.getElementsByClassName('i_photograph');
+    }
+    var x_scaler = -1 * Math.min(Math.abs(event.accelerationIncludingGravity.x) / 10, 0.2) * Math.abs(event.accelerationIncludingGravity.x) / event.accelerationIncludingGravity.x;
+    var y_scaler = -1 * Math.min(Math.abs(event.accelerationIncludingGravity.y) / 10, 0.2) * Math.abs(event.accelerationIncludingGravity.y) / event.accelerationIncludingGravity.y;
+    
+    if(
+        Math.abs(PREV_X_SCALER - x_scaler) < 0.01
+        && Math.abs(PREV_Y_SCALER - y_scaler) < 0.01
+    ) {
+        return;
+    }
+    else {
+        PREV_X_SCALER = x_scaler;
+        PREV_Y_SCALER = y_scaler;        
+    }
 
-  // Do stuff with the new orientation data
-  console.log(absolute + ':' + alpha + ':' + beta + ':' + gamma);
+    for(var i = 0; i < SCALER_IMAGES.length; i++)    {
+        SCALER_IMAGES[i].style.transitionDuration = '0.5s';        
+        SCALER_IMAGES[i].style.transitionTimingFunction = 'linear'; 
+        SCALER_IMAGES[i].style.transform = 'translateX(' + (x_scaler * 100) + 'px) translateY(' + (y_scaler * 100) + 'px)';
+    }
+
 }
-window.addEventListener("devicemotion", handleOrientation, true);
+// window.addEventListener("devicemotion", handleOrientation, true);
 
 
 </script>
