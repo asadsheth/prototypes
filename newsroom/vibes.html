@@ -1,0 +1,414 @@
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta property="og:title" content="doop doop doop" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="<?php echo $OG_IMAGE_BORROWED; ?>" />
+	<style>
+* {
+	box-sizing: border-box;
+}
+body{
+	margin: 0;
+	background: #ddd;
+	font-family: sans-serif;
+	font-size: 15px;
+}
+
+a {
+	text-decoration: none;
+	color: inherit;
+}
+
+div.vibe_button {
+	font-size: 35px;
+	margin: 35px;
+	background: white;
+	padding: 35px;
+	box-sizing: border-box;
+	border: 2px outset;
+}
+
+h1.vibe_header	{
+	text-align: center;
+	background: linear-gradient(45deg, blue, purple);
+	height: 200px;
+	line-height: 200px;
+	font-size: 30px;
+	color: white;
+}
+
+div.card {
+	margin: 0px 0px 25px 0px;
+	padding: 20px 0px 20px 0px;
+	border-bottom: 1px solid #777;
+	border-top: 1px solid #ccc;
+	background: white;
+	box-shadow: 0 0 20px 0 gray;
+}
+
+div.prompt {
+	/* this is the thing that somebody says, e.g. the comment */
+	border: 5px solid purple;
+	border-width: 0px 0px 0px 5px;
+}
+div.card_meta {
+	/*border-left: 5px solid;*/
+	padding: 0 0 0 0px;
+}
+
+div.card_author {
+	padding: 0px 20px;
+	font-size: 12px;
+	font-weight: bold;
+}
+div.card_author_avatar img {
+	float: left;
+	width: 25px;
+	height: 25;
+	border-radius: 13px;
+	box-shadow: 0 0 10px 0 gray;
+	margin-right: 10px;
+}
+div.card_author_avatar {
+
+}
+div.card_author_name {
+
+}
+div.card_timestamp {
+	font-size: 10px;
+	color: gray;
+	padding: 0px 20px 0px 20px;
+}
+
+div.premise {
+	padding: 0px 0px 0px 00px;
+	margin: 20px 20px;
+	border-radius: 15px;
+	background: linear-gradient(#eee, #ddd);
+	padding: 15px;
+	/*border-left: 5px solid purple;*/
+}
+
+div.riposte {
+	margin-left: 20px;
+	border: 5px solid purple;
+	border-width: 0px 0px 0px 5px;	
+}
+
+div.context {
+}
+div.context div.context_title {
+	font-weight: bold;
+	padding: 0px 20px;
+	margin: 20px 0px 10px 0px;
+	font-size: 30px;
+}
+div.context div.context_source {
+	font-weight: normal;
+	padding: 0px 20px;
+	margin: 0px 0px;
+	font-size: 10px;
+}
+img.context_image {
+	width: 100%;
+}
+
+div.engagement {
+	padding: 0px 20px;
+	margin: 20px 0px;
+	text-align: right;
+	font-size: 10px;
+}
+
+div.reply {
+	padding: 20px;
+}
+div.reply textarea {
+	width: 100%;
+	height: 59px;
+	border: 1px solid gray;
+	font-size: 14px;
+	padding: 20px;
+}
+
+div.clear	{
+	visibility: hidden;
+	height: 0px;
+	overflow: hidden;
+	clear: both;
+}
+	</style>
+</head>
+
+<body>
+
+</body>
+
+<script>
+
+var ALL_VIBES = [];
+
+var COLORS = [
+    'darkred',
+    'darkgreen',
+    'darkcyan',
+    'darkblue',
+    'darkgoldenrod',
+    'darkslateblue',
+    'darkviolet',
+    'indigo',
+    'darkmagenta',
+    'firebrick',
+    'green',
+    'maroon',
+    'midnightblue',
+    'rebeccapurple'
+];
+
+document.addEventListener("DOMContentLoaded", function(event) {
+	if(window.location.href.indexOf('allcomments') > -1)	{
+		document.body.innerHTML = '';
+
+		console.log('allcomments')
+		var scr = document.createElement('script');
+		scr.src = 'caches/c_allvibes.jsonp';
+		document.head.appendChild(scr);
+	}
+	else {
+		// get vibes from cached list
+		load_vibe_list();
+	}
+});
+
+var create_prompt = function(prompt_obj, theme_color) {
+	var prompt = document.createElement('div');
+	prompt.className = 'prompt';
+	if(theme_color) prompt.style.borderColor = theme_color;
+	// prompt metadata
+	var card_meta = document.createElement('div');
+	card_meta.className = 'card_meta';
+	var author = document.createElement('div');
+	author.className = 'card_author';
+	author.innerHTML = '<div class="card_author_avatar"><img src="' + prompt_obj.author_img + '"/></div>' + '<div class="card_author_name">' + prompt_obj.author_name + '</div>';
+	card_meta.appendChild(author);
+	// timestamp
+	var timestamp = document.createElement('div');
+	timestamp.className = 'card_timestamp';
+	// comment time
+	timestamp.innerHTML = prompt_obj.comment_relative_time + 'h';
+	card_meta.appendChild(timestamp);
+	prompt.appendChild(card_meta)
+	// the premise of the comment
+	if(prompt_obj.bot)	{
+		// no!
+	}
+	else {
+		var premise = document.createElement('div');
+		premise.className = 'premise';
+		premise.innerHTML = prompt_obj.text;
+		prompt.appendChild(premise);
+	}
+	// engagement
+	prompt.appendChild(create_engagement_meta(prompt_obj));
+
+	return prompt;
+}
+
+var create_riposte = function(riposte_obj, theme_color)	{
+	var riposte = document.createElement('div');
+	if(theme_color) riposte.style.borderColor = theme_color;
+
+	riposte.className = 'riposte';
+	// riposte metadata
+	var riposte_meta = document.createElement('div');
+	riposte_meta.className = 'card_meta';
+	var riposte_author = document.createElement('div');
+	riposte_author.className = 'card_author';
+	riposte_author.innerHTML = '<div class="card_author_avatar"><img src="' + riposte_obj.author_img + '"/></div>' + '<div class="card_author_name">' + riposte_obj.author_name + '</div>';
+	riposte_meta.appendChild(riposte_author);
+	var riposte_timestamp = document.createElement('div');
+	riposte_timestamp.className = 'card_timestamp';
+	// comment time
+	riposte_timestamp.innerHTML = riposte_obj.comment_relative_time + 'h';
+	riposte_meta.appendChild(riposte_timestamp);
+	riposte.appendChild(riposte_meta)
+
+	// the premise of the comment
+	var riposte_premise = document.createElement('div');
+	riposte_premise.className = 'premise';
+	riposte_premise.innerHTML = riposte_obj.text;
+ 	riposte.appendChild(riposte_premise);
+
+	// engagement
+	riposte.appendChild(create_engagement_meta(riposte_obj)); 	
+
+ 	return riposte;
+}
+
+var create_engagement_meta = function(engagement_obj)	{
+	var engagement = document.createElement('div');
+	engagement.className = 'engagement';
+	engagement.innerHTML = '&uarr; ' + engagement_obj.upvotes + '&nbsp; &nbsp; &nbsp; ' + '&darr; ' + engagement_obj.downvotes + '&nbsp; &nbsp; &nbsp; ' + '&#10150; ' + engagement_obj.replies;
+	
+	return engagement;
+}
+
+var create_context = function(context_obj, verbose, theme_color)	{
+	if(verbose)	{
+		var context = document.createElement('div');
+		context.className = 'context';
+		context.innerHTML = '<a href="' + context_obj.context_meta.link + '">' + (context_obj.context_meta.img ? ('<img class="context_image" src="' + context_obj.context_meta.img + '"/>') : '') + '<div class="context_title">' + context_obj.context_meta.title + '</div>' + '<div class="context_source">' + context_obj.context_meta.provider + '</div>' + '</a>';
+	}
+	else {
+		// the context (the article)
+		var context = document.createElement('div');
+		context.className = 'context';
+		context.style.background = '#eee';
+		context.style.padding = '10px';
+		context.innerHTML = '<div style="margin-left: 20px">' + context_obj.context_meta.vibe_name + ' &bull; ' + context_obj.context_meta.provider + ' &bull; ' + context_obj.context_meta.content_relative_time + 'h</div>' + '<a tabindex="-1" href="' + context_obj.context_meta.link + '">'  + '<div class="context_title" style="font-size: 16px !important; margin-top: 10px !important; margin-bottom: 10px !important">' + context_obj.context_meta.title + '</div>' + '</a>';
+	}
+
+	if(theme_color) {
+		context.style.background = theme_color;
+		context.style.color = '#fff';
+	}
+
+	return context;
+}
+
+function load_vibe_list() {
+	// add script to head for jsonp to load the list of vibes that are available for analysis
+	var scr = document.createElement('script');
+	scr.src = 'caches/all_vibes.jsonp';
+	document.head.appendChild(scr);
+}
+
+function load_vibe(id) {
+	// load an individual vibe. first check if we're evaluating all comments for each vibe or if we're looking at a pseudovibestream based on comments
+	if(window.location.href.indexOf('evaluate') > -1)	{
+		// we're just evaluating all the comments we have for this vibe
+		var scr = document.createElement('script');
+		scr.src = 'caches/c_full_' + id + '.jsonp';
+		document.head.appendChild(scr);
+	}
+	else {
+		// we're looking at our pseudo-stream
+		var scr = document.createElement('script');
+		scr.src = 'caches/c_' + id + '.jsonp';
+		document.head.appendChild(scr);
+	}
+}
+
+function jsonp_parse_all_comments(obj) {
+	console.log(obj);
+	
+	// in this function we're getting as an input alllll the comments we found
+	document.body.className = 'vibe_comment_evaluator';
+
+	for(var i = 0; i < obj.length; i++)	{
+		// skip bot posts
+		if(obj[i].bot) continue;
+
+	    var theme_color = COLORS[Math.floor(Math.random() * COLORS.length)];
+
+		var card = document.createElement('div');
+		card.className = 'card';
+
+		// the prompt (the comment)
+		card.appendChild(create_prompt(obj[i], theme_color));
+		// existing riposte
+		if(obj[i].ripostes)	{
+			card.appendChild(create_riposte(obj[i].ripostes));
+		}		
+		// the context
+		card.appendChild(create_context(obj[i], false, theme_color));
+
+		document.body.appendChild(card);
+	}	
+}
+
+function jsonp_parse_comment_list(obj) {
+	// in this function we're just evaluating all the comments for a given vibe
+    var theme_color = COLORS[Math.floor(Math.random() * COLORS.length)];
+	document.body.className = 'vibe_comment_evaluator';
+
+	console.log(obj)
+
+	for(var i = 0; i < obj.length; i++)	{
+		// skip bot posts
+		if(obj[i].bot) continue;
+		if(
+			window.location.href.indexOf('threadsonly') > -1
+			&& !obj[i].ripostes
+		) continue;
+		// the card
+		var card = document.createElement('div');
+		card.className = 'card';
+		// the prompt
+		card.appendChild(create_prompt(obj[i], theme_color));
+		// existing riposte
+		if(obj[i].ripostes)	{
+			card.appendChild(create_riposte(obj[i].ripostes));
+		}		
+		// the context (the article)
+		card.appendChild(create_context(obj[i], false, theme_color));
+
+		document.body.appendChild(card);
+	}
+}
+
+function jsonp_parse_vibes(obj)	{
+	// in this function we're just handling the list of vibes - spit em out as a menu
+	ALL_VIBES = obj;
+
+	for(var i = 0; i < ALL_VIBES.length; i++)	{
+		var vibe_button = document.createElement('div');
+		vibe_button.className = 'vibe_button';
+		vibe_button.id = ALL_VIBES[i].id;
+		vibe_button.name = ALL_VIBES[i].name;
+		vibe_button.innerHTML = ALL_VIBES[i].name;
+		vibe_button.onclick = function() {
+			document.body.innerHTML = '<h1 class="vibe_header">' + this.name + '</h1>';
+
+			load_vibe(this.id);
+		}
+
+		document.body.appendChild(vibe_button);
+	}
+
+}
+
+function jsonp_parse_posts(obj) {
+	// this function tries our hand at a new vibe stream constructed by pseudoposts from comments
+    var theme_color = COLORS[Math.floor(Math.random() * COLORS.length)];
+
+	for(var i = 0; i < obj.length; i++)	{
+		// the card
+		var card = document.createElement('div');
+		card.className = 'card';
+		// the prompt
+		var prompt = create_prompt(obj[i], theme_color);
+		card.appendChild(prompt);
+		// existing riposte
+		if(obj[i].ripostes)	{
+			card.appendChild(create_riposte(obj[i].ripostes));
+		}
+
+		// the context (the article)
+		card.appendChild(create_context(obj[i], true));
+
+		// the reply
+		var reply = document.createElement('div');
+		reply.className = 'reply';
+		reply.innerHTML = '<textarea placeholder="' + (obj[i].bot ? ('Start the conversation') : ('Reply to ' + obj[i].author_name)) + '&hellip;"></textarea>';
+		card.appendChild(reply);
+
+		document.body.appendChild(card);
+	}
+}
+</script>
+
+</html>
