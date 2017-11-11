@@ -7,7 +7,7 @@
 
 $vibes = file('tmp.csv');
 
-echo 'Vibe ID' . "\t" . 'Vibe Name' . "\t" . 'Uniques' . "\t" . 'Followers' . "\t" . 'Views' . "\t" . 'Clicks' . "\n";
+echo 'Vibe ID' . "\t" . 'Vibe Name' . "\t" . 'Uniques' . "\t" . 'Followers' . "\t" . 'Views' . "\t" . 'Clicks' . "\tViews / UU" . "\tClicks / UU" . "\tCPU/VPU" . "\tUUDV" . "\tUUDV/UU" . "\n";
 
 $vibe_array = array();
 for($i = 1; $i < count($vibes); $i++) {
@@ -35,13 +35,25 @@ for($i = 1; $i < count($vibes); $i++) {
 			$vibe_subs = $obj['topics']['result'][0]['userSubscriberCount'];
 			$vibe_views = $vibe_info[2];
 			$vibe_clicks = $vibe_info[3];
-
-			echo $vibe_id . "\t" . $vibe_name . "\t" . $vibe_uniques . "\t" . $vibe_subs . "\t" . $vibe_views . "\t" . $vibe_clicks . "\n";
+			$vibe_uudv = $vibe_info[4];			
 			// echo 'array( \'name\' => \'' . $vibe_name . '\', \'id\' => \'' . $vibe_id . '\' ),' . "\n";
 		}
 		else {
-			echo $vibe_info[0] . "\t" . '?' . "\t" . $vibe_info[1] . "\t" .  '?' . "\t"  . $vibe_info[2] . "\t" . $vibe_info[3] . "\n";
+			$vibe_id = $vibe_info[0];
+			$vibe_name = '?';
+			$vibe_uniques = $vibe_info[1];
+			$vibe_subs = '?';
+			$vibe_views = $vibe_info[2];
+			$vibe_clicks = $vibe_info[3];
+			$vibe_uudv = $vibe_info[4];
 		}
+
+		$viewsperuu = $vibe_views / $vibe_uniques;
+		$clicksperuu = $vibe_clicks / $vibe_uniques;
+		$cvpuu = $clicksperuu / $viewsperuu;
+
+		echo $vibe_id . "\t" . $vibe_name . "\t" . $vibe_uniques . "\t" . $vibe_subs . "\t" . $vibe_views . "\t" . $vibe_clicks . "\t" . $viewsperuu . "\t" . $clicksperuu . "\t" . $cvpuu . "\t" . $vibe_uudv . "\t" . ($vibe_uudv / $vibe_uniques) . "\n";
+
 	} catch(Exception $e) {
 		continue;
 	}

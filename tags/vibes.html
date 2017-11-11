@@ -89,6 +89,7 @@ div.premise {
 	border-radius: 15px;
 	background: linear-gradient(#eee, #ddd);
 	padding: 15px;
+	white-space: pre-wrap;
 	/*border-left: 5px solid purple;*/
 }
 
@@ -99,6 +100,10 @@ div.riposte {
 }
 
 div.context {
+}
+div.verbose {
+	margin-top: -20px;
+	margin-bottom: 20px;
 }
 div.context div.context_title {
 	font-weight: bold;
@@ -149,6 +154,12 @@ div.clear	{
 
 <script>
 
+console.log('?evaluate: browse full comment set for vibes');
+console.log('?allcomments: dump every single comment i know');
+console.log('?rawrank: new vibe stream but legacy ranking');
+console.log('&noreplies: hides replies');
+console.log('&threadsonly: hides items with no replies');
+
 var ALL_VIBES = [];
 
 var COLORS = [
@@ -172,7 +183,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
 	if(window.location.href.indexOf('allcomments') > -1)	{
 		document.body.innerHTML = '';
 
-		console.log('allcomments')
+		console.log('fetching allcomments')
 		var scr = document.createElement('script');
 		scr.src = 'caches/c_allvibes.jsonp';
 		document.head.appendChild(scr);
@@ -259,8 +270,8 @@ var create_engagement_meta = function(engagement_obj)	{
 var create_context = function(context_obj, verbose, theme_color)	{
 	if(verbose)	{
 		var context = document.createElement('div');
-		context.className = 'context';
-		context.innerHTML = '<a href="' + context_obj.context_meta.link + '">' + (context_obj.context_meta.img ? ('<img class="context_image" src="' + context_obj.context_meta.img + '"/>') : '') + '<div class="context_title">' + context_obj.context_meta.title + '</div>' + '<div class="context_source">' + context_obj.context_meta.provider + '</div>' + '</a>';
+		context.className = 'context verbose';
+		context.innerHTML = '<a href="' + context_obj.context_meta.link + '">' + (context_obj.context_meta.img ? ('<img class="context_image" src="' + context_obj.context_meta.img + '"/>') : '') + '<div class="context_title">' + context_obj.context_meta.title + '</div>' + '<div class="context_source">' + context_obj.context_meta.provider + ' &bull; ' + context_obj.context_meta.content_relative_time + 'h' + '</div>' + '</a>';
 	}
 	else {
 		// the context (the article)
@@ -294,8 +305,14 @@ function load_vibe(id) {
 		scr.src = 'caches/c_full_' + id + '.jsonp';
 		document.head.appendChild(scr);
 	}
+	else if(window.location.href.indexOf('rawrank') > -1) {
+		// spit out the raw list the backend gave us
+		var scr = document.createElement('script');
+		scr.src = 'caches/c_rawrank_' + id + '.jsonp';
+		document.head.appendChild(scr);		
+	}
 	else {
-		// we're looking at our pseudo-stream
+		// we're looking at our new ranked pseudo-stream
 		var scr = document.createElement('script');
 		scr.src = 'caches/c_' + id + '.jsonp';
 		document.head.appendChild(scr);
@@ -303,6 +320,7 @@ function load_vibe(id) {
 }
 
 function jsonp_parse_all_comments(obj) {
+	console.log('handler: allllllll comments');
 	console.log(obj);
 	
 	// in this function we're getting as an input alllll the comments we found
@@ -320,7 +338,10 @@ function jsonp_parse_all_comments(obj) {
 		// the prompt (the comment)
 		card.appendChild(create_prompt(obj[i], theme_color));
 		// existing riposte
-		if(obj[i].ripostes)	{
+		if(
+			obj[i].ripostes
+			&& window.location.href.indexOf('noreplies') == -1
+		)	{
 			card.appendChild(create_riposte(obj[i].ripostes));
 		}		
 		// the context
@@ -331,6 +352,9 @@ function jsonp_parse_all_comments(obj) {
 }
 
 function jsonp_parse_comment_list(obj) {
+	console.log('handler: vibe comments');
+	console.log(obj);
+
 	// in this function we're just evaluating all the comments for a given vibe
     var theme_color = COLORS[Math.floor(Math.random() * COLORS.length)];
 	document.body.className = 'vibe_comment_evaluator';
@@ -350,7 +374,10 @@ function jsonp_parse_comment_list(obj) {
 		// the prompt
 		card.appendChild(create_prompt(obj[i], theme_color));
 		// existing riposte
-		if(obj[i].ripostes)	{
+		if(
+			obj[i].ripostes
+			&& window.location.href.indexOf('noreplies') == -1
+		)	{
 			card.appendChild(create_riposte(obj[i].ripostes));
 		}		
 		// the context (the article)
@@ -361,6 +388,9 @@ function jsonp_parse_comment_list(obj) {
 }
 
 function jsonp_parse_vibes(obj)	{
+	console.log('handler: vibe list');
+	console.log(obj);
+	
 	// in this function we're just handling the list of vibes - spit em out as a menu
 	ALL_VIBES = obj;
 
@@ -382,6 +412,9 @@ function jsonp_parse_vibes(obj)	{
 }
 
 function jsonp_parse_posts(obj) {
+	console.log('handler: new vibe stream');
+	console.log(obj);
+
 	// this function tries our hand at a new vibe stream constructed by pseudoposts from comments
     var theme_color = COLORS[Math.floor(Math.random() * COLORS.length)];
 
@@ -389,22 +422,26 @@ function jsonp_parse_posts(obj) {
 		// the card
 		var card = document.createElement('div');
 		card.className = 'card';
-		// the prompt
-		var prompt = create_prompt(obj[i], theme_color);
-		card.appendChild(prompt);
-		// existing riposte
-		if(obj[i].ripostes)	{
-			card.appendChild(create_riposte(obj[i].ripostes));
-		}
 
 		// the context (the article)
 		card.appendChild(create_context(obj[i], true));
 
-		// the reply
-		var reply = document.createElement('div');
-		reply.className = 'reply';
-		reply.innerHTML = '<textarea placeholder="' + (obj[i].bot ? ('Start the conversation') : ('Reply to ' + obj[i].author_name)) + '&hellip;"></textarea>';
-		card.appendChild(reply);
+		// the prompt (comment?)
+		if(!obj[i].bot)	{
+			var prompt = create_prompt(obj[i], theme_color);
+			card.appendChild(prompt);
+		}
+	
+		// ripostes
+		// if(obj[i].ripostes)	{
+			// card.appendChild(create_riposte(obj[i].ripostes));
+		// }
+
+		// the reply entry field
+		// var reply = document.createElement('div');
+		// reply.className = 'reply';
+		// reply.innerHTML = '<textarea placeholder="' + (obj[i].bot ? ('Start the conversation') : ('Reply to ' + obj[i].author_name)) + '&hellip;"></textarea>';
+		// card.appendChild(reply);
 
 		document.body.appendChild(card);
 	}

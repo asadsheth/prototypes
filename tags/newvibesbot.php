@@ -5,9 +5,11 @@
 
 error_reporting(0);
 set_time_limit(3600);
+ini_set('memory_limit', '512M');
 
 // get our shared service for vibes
 require('../shared/allvibes.php');
+require('../shared/utilities.php');
 
 // logger
 $logp = fopen('log.log', 'a');
@@ -17,40 +19,25 @@ fwrite($logp, '----------------------------' . "\n");
 $CACHE_DIR = './caches/';
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
 $DEBUG = true;
-$ADDITIONAL_VIBE_PAGES = 5;
+$ADDITIONAL_VIBE_PAGES = 1;
 // echo json_encode($ALL_VIBES); exit;
 
 if($DEBUG)	{
 	$ALL_VIBES = array(
 		array( 'name' => '@Megastream', 'id' => '@MEGASTREAM' ),
-		array( 'name' => 'Finance', 'id' => '338950e1-cae3-359e-bfa3-af403b69d694' )
+		// array( 'name' => '@MegaOTT', 'id' => '@MEGASTREAMVIDEO' ),
+		// array( 'name' => '[smartChrono] NBA', 'id' => 'e238b3d0-c6d5-11e5-af54-fa163e2c24a6', 'ranking' => 'smartChrono' ),
+		// array( 'name' => '[legacy] NBA', 'id' => 'e238b3d0-c6d5-11e5-af54-fa163e2c24a6', 'ranking' => 'ranked' )
 	);
 }
 
 // write the vibe list to disk
 file_put_contents($CACHE_DIR . "all_vibes.jsonp", 'jsonp_parse_vibes(' . json_encode($ALL_VIBES) . ');');
 
-// get the base weight (a power of 2 here) for each story
-function time_weighted_power($age, $base = 2)	{
-	$exponent = max(10 - floor(log($age + 1) / log($base)), 0);
-	return pow(2, $exponent);	
-}
+// FUNCTIONS
 
-function reddit_score($uv, $dv, $reports) {
-	$r = $reports;
-	// cheat downvotes up for reports and 5 static
-	$dv = $dv + 10 * $r + 5;
-	$n = $uv + $dv;
-	if($n == 0)	{ $score = 0; } else {
-		$z = 1.281551565545;
-		$p = $uv / $n;
-		$left = $p + 1/(2*$n)*$z*$z;
-		$right = $z*sqrt($p*(1-$p)/$n + $z*$z/(4*$n*$n));
-		$under = 1+1/$n*$z*$z;
-		$score = ($left + $right) / $under;
-	}
-
-	return $score;
+function get_user_message_history($guid)	{
+	// http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/users/CZH3URRXXVIXWS6MYB6ZR3FJKQ/messages?region=US&lang=en-US
 }
 
 function get_uuid_to_vibes($all_comments)	{
@@ -64,7 +51,7 @@ function get_uuid_to_vibes($all_comments)	{
 		$vibe_id = $obj[$i]['context_meta']['vibe_id'];
 
 		// skip our special vibes
-		if($vibe_id != '@MEGASTREAM') {
+		if(!strstr($vibe_id, '@')) {
 			array_push($uuids[$uuid], $obj[$i]);
 
 			// build the article to vibe mapping
@@ -89,8 +76,8 @@ function derive_multi_posters($all_comments)	{
 		$vibe_id = $obj[$i]['context_meta']['vibe_id'];
 
 		// skip our special vibes
-		if($vibe_id != '@MEGASTREAM') {
-			// build a map of uuids with comments by author
+		if(!strstr($vibe_id, '@')) {
+			// build a map of article uuids with comments by author
 			if($guid != '1')	{
 				if(!isset($authors[$guid]))	{
 					$authors[$guid] = array();
@@ -105,8 +92,9 @@ function derive_multi_posters($all_comments)	{
 	$multi_poster_guids = array();
 	foreach($authors as $guid => $bunch)	{
 		$uuid_count = 0;
+		
+		// count the uuids in the bunch
 		foreach($bunch as $uuid)	{
-			// echo $guid . ':' . $uuid . "\n";
 			$uuid_count++;
 		}
 		
@@ -116,96 +104,6 @@ function derive_multi_posters($all_comments)	{
 	return $multi_poster_guids;	
 }
 
-// go get the stream
-function curl_post_stream($vibe_id, $next)	{
-	// legacy ranking
-	// $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/rankedStream?lang=en-US&region=US';
-	// smart chrono stream
-	$url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/smartChronoStream?lang=en-US&region=US';
-	// ntk + main stream
-	// http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/streams/blended
-
-	if($vibe_id == '@MEGASTREAM')	{
-		// do something different
-		$url = 	'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/streams/blended';
-	}
-
-	if(isset($next))	{
-		// get th enext stream
-		 // curl an empty $_POST
-		$wh = curl_init($url);
-		curl_setopt($wh,  CURLOPT_CUSTOMREQUEST, 'POST');
-		curl_setopt($wh,  CURLOPT_POSTFIELDS, $next);
-		curl_setopt($wh,  CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($wh,  CURLOPT_HTTPHEADER, array(
-		    'Content-Type: application/json',                                                                                
-		    'Content-Length: ' . (strlen($next))
-		));
-	} else {
-		 // curl an empty $_POST
-		$wh = curl_init($url);
-		curl_setopt($wh,  CURLOPT_CUSTOMREQUEST, 'POST');
-		curl_setopt($wh,  CURLOPT_POSTFIELDS, '{}');
-		curl_setopt($wh,  CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($wh,  CURLOPT_HTTPHEADER, array(
-		    'Content-Type: application/json',                                                                                
-		    'Content-Length: 2'
-		));
-	}
-
-	$response = curl_exec($wh);
-	$httpCode = curl_getinfo($wh, CURLINFO_HTTP_CODE);
-	curl_close($wh);           
-
-	if($httpCode != '200') {
-		fwrite($logp, 'http request failed for ' . $url . "\n");
-	    continue;
-	}		
-	
-	// empty object
-	$object = array(
-		'items' => array(
-			'result' => array()
-		)
-	);
-	// try to handle the curl response
-	try {
-		$object = json_decode($response, true);
-	}
-	catch(Exception $e) {
-		// oops something broke just write back what we had before
-		fwrite($logp, 'ooooops hit an exception while requesting new posts' . "\n");
-		file_put_contents($CACHE_DIR . "$vibe_id.json", json_encode($posts));
-	    continue;
-	}
-
-	// special handling for the first NTK page
-	if($vibe_id == '@MEGASTREAM')	{
-		// filter out non-post items
-		$posts = array();
-		for($i = 0; $i < count($object['items']['result']); $i++)	{
-			if($object['items']['result'][$i]['type'] == 'post')	{
-				array_push($posts, $object['items']['result'][$i]);
-			}
-		}
-
-		$object['items']['result'] = $posts;
-	}
-
-	return $object; 
-}
-
-// go get the replies for a given a
-function curl_canvass_replies($context_id, $message_id)	{
-	$reply_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/' . $context_id . '/messages/' . $message_id . '/replies?region=US&lang=en-US&count=50';
-
-	$reply_response = file_get_contents($reply_url);
-	$reply_response_object = json_decode($reply_response, true);
-
-	return $reply_response_object; 
-}
-
-
 // content work
 for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	fwrite($logp, 'working on ' . $ALL_VIBES[$ind]['name'] . " - " . $ALL_VIBES[$ind]['id'] . "\n");
@@ -213,6 +111,7 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	// shortcuts
 	$vibe_id = $ALL_VIBES[$ind]['id'];
 	$vibe_name = $ALL_VIBES[$ind]['name'];
+	$vibe_ranking = isset($ALL_VIBES[$ind]['ranking']) ? $ALL_VIBES[$ind]['ranking'] : 'smartChrono';
 
 	// get local posts if they exist
 	if(
@@ -230,137 +129,118 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	// log what we had on disk, if any
 	fwrite($logp, 'local post count: ' . count($posts) . "\n");
 
-	// since we always check remote; this is not needed
-	if(true)	{
-		// get the first 15
-		$object = curl_post_stream($vibe_id);
+	// get the first page of posts - id, next token, ranking
+	$object = curl_post_stream($vibe_id, null, $vibe_ranking);
 
-		fwrite($logp, 'initial remote count: ' . count($object['items']['result']) . "\n");
+	// log what we found
+	fwrite($logp, 'initial remote count: ' . count($object['items']['result']) . "\n");
 
-		// get the next 15
-		if(
-			// only if this is full
-			count($object['items']['result']) == 15
-			// or just do it always?
-			|| true
-		)	{
+	// get the next page, as many times as config'd
+	$next_token = json_encode($object['meta']['result'][0]);
+	for($recurs = 0; $recurs < $ADDITIONAL_VIBE_PAGES; $recurs++)	{
+		// get the next items
+		$next_obj = (curl_post_stream($vibe_id, $next_token, $vibe_ranking)); 
 
-			$next_token = json_encode($object['meta']['result'][0]);
-			for($recurs = 0; $recurs < $ADDITIONAL_VIBE_PAGES; $recurs++)	{
-				// get the next items
-				$next_obj = (curl_post_stream($vibe_id, $next_token)); 
+		// add them to the original object
+		for($i = 0; $i < count($next_obj['items']['result']); $i++) {
+			array_push($object['items']['result'], json_decode(json_encode($next_obj['items']['result'][$i]), true));
+		} 
 
-				// add them to the original object
-				for($i = 0; $i < count($next_obj['items']['result']); $i++) {
-					array_push($object['items']['result'], json_decode(json_encode($next_obj['items']['result'][$i]), true));
-				} 
+		// log what we found again
+		fwrite($logp, 'revised remote count: ' . count($object['items']['result']) . "\n");
 
-				fwrite($logp, 'revised remote count: ' . count($object['items']['result']) . "\n");
-
-				$next_token = json_encode($next_obj['meta']['result'][0]);
-			}
-		}
-
-		// parse it all
-		$provider_posts = 0;
-		$posted_posts = 0;
-		for($i = count($object['items']['result']) - 1; $i >= 0; $i--)	{
-			$obj = $object['items']['result'][$i];
-
-			// print_r($obj);
-
-			$post_id = $obj['id'];
-			$post_url = $obj['postUrl'];
-			$author = $obj['author']['name'];
-			$lead_attribution = $obj['leadAttribution'];
-			$link = $obj['content']['url'];
-			$img = $obj['content']['images'][0]['originalUrl'];
-			$title = $obj['content']['title'];
-			$content_id = $obj['content']['uuid'];
-			$summary = $obj['content']['summary'];
-			$published_at = $obj['publishedAt'];
-			$topic = $obj['topics'][0]['name'];
-			$provider = $obj['content']['provider']['name'];
-			$comments_count = $obj['comments']['count'];
-			$content_url = $obj['content']['url'];
-			$content_published_at = $obj['content']['publishedAt'];
-
-			if($lead_attribution == 'provider')	{
-				$provider_posts++;
-			}
-			else {
-				// print_r($obj);
-				// exit;
-			}
-			
-			// go through all the saved posts and see if this post already exists
-			$already_exists = false;
-			for($j = 0; $j < count($posts); $j++)	{
-				if(
-					$posts[$j]['post_id'] == $post_id ||
-					$posts[$j]['title'] == $title || 
-					$posts[$j]['content_id'] == $content_id
-				)	{
-					// already seen this one
-					$already_exists = true;
-				}
-			}
-
-			if($lead_attribution != 'provider')	{
-				// print_r($obj);
-			}
-
-			if(
-				!$already_exists
-				&& $lead_attribution == 'provider'
-			)	{
-				// fwrite($logp, "\n");
-				// fwrite($logp, 'found a new provider post: ' . "\n");
-				// fwrite($logp, '--- title: ' . $title . "\n");
-				// fwrite($logp, '---- uuid: ' . $content_id . "\n");
-				// fwrite($logp, '-comments: ' . $comments_count . "\n");
-
-				// add it to the front of the list!
-				array_unshift($posts, array(
-					'post_id' => $post_id,
-					'post_url' => $post_url,
-					'author' => $author,
-					'provider' => $provider,
-					'lead_attribution' => $lead_attribution,
-					'link' => $link,
-					'img' => $img,
-					'title' => $title,
-					'summary' => $summary,
-					'published_at' => $published_at,
-					'content_id' => $content_id,
-					'content_url' => $content_url,
-					'content_published_at' => $content_published_at,
-					'content_relative_time' => floor((time() - $content_published_at) / 3600),
-					'vibe_name' => $vibe_name,
-					'vibe_id' => $vibe_id
-				));
-			}
-			else {
-				// fwrite($logp, 'found an old post (or a ugc post): ' . "\n");
-				// fwrite($logp, $title . "\n");
-			}
-		}
-
-		// done looking through the new posts
-		fwrite($logp, 'total remote provider posts found: ' . $provider_posts . "\n");
+		// store the next token from this result
+		$next_token = json_encode($next_obj['meta']['result'][0]);
 	}
+
+	// parse it all
+	$provider_posts = 0;
+	$posted_posts = 0;
+	// note we go backwards here because later we push to the front of the list - this might not matter though as we re-sort anyway
+	for($i = 0; $i < count($object['items']['result']) ; $i++)	{
+		$obj = $object['items']['result'][$i];
+
+		// pull out the meta we need
+		$post_id = $obj['id'];
+		$post_url = $obj['postUrl'];
+		$author = $obj['author']['name'];
+		$lead_attribution = $obj['leadAttribution'];
+		$link = $obj['content']['url'];
+		$img = $obj['content']['images'][0]['originalUrl'];
+		$title = $obj['content']['title'];
+		$content_id = $obj['content']['uuid'];
+		$summary = $obj['content']['summary'];
+		$published_at = $obj['publishedAt'];
+		$topic = $obj['topics'][0]['name'];
+		$provider = $obj['content']['provider']['name'];
+		$comments_count = $obj['comments']['count'];
+		$content_url = $obj['content']['url'];
+		$content_published_at = $obj['content']['publishedAt'];
+
+		// just counting how many provider posts
+		if($lead_attribution == 'provider')	{
+			$provider_posts++;
+		}
+		else {
+			// do nothing
+		}
+		
+		// go through all the saved posts and see if this post already exists
+		$already_exists = false;
+		for($j = 0; $j < count($posts); $j++)	{
+			if(
+				$posts[$j]['post_id'] == $post_id ||
+				$posts[$j]['title'] == $title || 
+				$posts[$j]['content_id'] == $content_id
+			)	{
+				// already seen this one
+				$already_exists = true;
+			}
+		}
+
+		if(
+			!$already_exists
+			&& $lead_attribution == 'provider'
+		)	{
+			// add it to the front of the list!
+			array_unshift($posts, array(
+				'post_id' => $post_id,
+				'post_url' => $post_url,
+				'author' => $author,
+				'provider' => $provider,
+				'lead_attribution' => $lead_attribution,
+				'link' => $link,
+				'img' => $img,
+				'title' => $title,
+				'summary' => $summary,
+				'published_at' => $published_at,
+				'content_id' => $content_id,
+				'content_url' => $content_url,
+				'content_published_at' => $content_published_at,
+				'content_relative_time' => floor((time() - $content_published_at) / 3600),
+				'vibe_name' => $vibe_name,
+				'vibe_id' => $vibe_id
+			));
+		}
+		else {
+			// fwrite($logp, 'found an old post (or a ugc post): ' . "\n");
+			// fwrite($logp, $title . "\n");
+		}
+	}
+
+	// done looking through the new posts
+	fwrite($logp, 'total remote provider posts found: ' . $provider_posts . "\n");
 
 	// ok if we got here things went ok. trim the post list:
 	$posts = array_slice($posts, 0, $NUM_POSTS_TO_KEEP_PER_VIBE);
 
 	// write stuff to file
 	file_put_contents($CACHE_DIR . "$vibe_id.json", json_encode($posts));
+	// write stuff to file
+	file_put_contents($CACHE_DIR . "$vibe_id.jsonp", 'jsonp_parse_post_list(' .json_encode($posts) . ');');
 }
 
 // let's go get comment info
-// http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/164ca269-c3c9-353e-b82a-f1b2199fae44/messages?count=100&sortBy=popular&region=US&lang=en-US&rankingProfile=canvassHalfLifeDecayProfile&userActivity=true					
-
-// comment work
 $every_single_comment = array();
 for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 	fwrite($logp, 'working on comment requests for ' . $ALL_VIBES[$ind]['name'] . " - " . $ALL_VIBES[$ind]['id'] . "\n");
@@ -390,6 +270,8 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 		// canvass request
 		$canvass_request_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/' . $posts[$i]['content_id'] . '/messages?count=30&sortBy=popular&region=US&lang=en-US&rankingProfile=canvassHalfLifeDecayProfile&userActivity=true';
 
+		fwrite($logp, $canvass_request_url . "\n");
+
 		$canvass_response = file_get_contents($canvass_request_url);
 		$canvass_response_object = json_decode($canvass_response, true);
 		$messages = $canvass_response_object['canvassMessages'];
@@ -397,9 +279,6 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 		// go through all them messages
 		$found_message = false;
 		for($j = 0; $j < count($messages); $j++)	{
-
-			// echo json_encode($messages[$j]); exit;
-
 			$message_text = $messages[$j]['details']['userText'];
 			$message_id = $messages[$j]['messageId'];
 			$message_upvotes = $messages[$j]['reactionStats']['upVoteCount'];
@@ -442,7 +321,7 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 				&& !strstr(strtolower($message_text), 'yahoo')
 			)	{
 				array_unshift($msgs, $msg);
-				$found_message = true;
+				$found_message = true;				
 			}
 		}
 
@@ -475,21 +354,6 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 		}
 	}
 
-	// rank the messages by time-wieghted-score
-	for($i = 0; $i < count($msgs); $i++)	{
-		for($j = $i + 1; $j < count($msgs); $j++)  {
-			$weighted_timestamp_i = time_weighted_power($msgs[$i]['comment_relative_time']) + $msgs[$i]['score'];
-			$weighted_timestamp_j = time_weighted_power($msgs[$j]['comment_relative_time']) + $msgs[$j]['score'];
-
-			
-			if($weighted_timestamp_i < $weighted_timestamp_j)	{
-				$tmp = $msgs[$i];
-				$msgs[$i] = $msgs[$j];
-				$msgs[$j] = $tmp;
-			}
-		}
-	}
-
 	// go through what we've got now and figure out the reply situation
 	for($i = 0; $i < count($msgs); $i++)	{
 		if(
@@ -501,7 +365,7 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 			continue;
 		}
 		else {
-			fwrite($logp, $vibe_name . ': working on comment requests for message #' . $i . ' of ' . count($msgs) . "\n");
+			fwrite($logp, $vibe_name . ': working on comment replies for message #' . $i . ' of ' . count($msgs) . "\n");
 			$replies_obj = curl_canvass_replies($msgs[$i]['context_id'], $msgs[$i]['message_id']);
 			$reply_list = $replies_obj['canvassReplies'];
 
@@ -538,11 +402,11 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 					'bot' => false
 				);
 
+				// add this message to the list of replies
 				array_push($reps, $msg);
-
 			}
 
-			// sort the reply list
+			// sort the reply list by score - NOT time-weighted score
 			for($j = 0; $j < count($reps); $j++) {
 				for($k = $j + 1; $k < count($reps); $k++) {
 					if($reps[$j]['score'] < $reps[$k]['score'])	{
@@ -553,19 +417,62 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 				}
 			}
 
+			// only store one reply at this point
 			$msgs[$i]['ripostes'] = $reps[0];
 		}
 	}
 
+	// before we do any re-sorting, write a raw deduped post list. this should match the stream sorting. start by spitting out a jsonp for this vibe; only one comment per post
+	$seen_posts = array();
+	$deduped_msgs = array();
+	for($i = 0; $i < count($msgs); $i++)	{
+		if(!isset($seen_posts[$msgs[$i]['context_meta']['post_id']]))	{
+			$seen_posts[$msgs[$i]['context_meta']['post_id']] = true;
+			array_push($deduped_msgs, $msgs[$i]);
+		}
+		else {
+			// let's move on, we're covered here already
+		}
+	}	
+	file_put_contents($CACHE_DIR . "c_rawrank_$vibe_id.json", json_encode($deduped_msgs));	
+	file_put_contents($CACHE_DIR . "c_rawrank_$vibe_id.jsonp", 'jsonp_parse_posts(' .json_encode($deduped_msgs) . ');');
 
-	// write the full set of comments for this vibe
-	file_put_contents($CACHE_DIR . "c_$vibe_id.json", json_encode($msgs));
+	// now just rank all of the messages by message score
+	for($i = 0; $i < count($msgs); $i++)	{
+		for($j = $i + 1; $j < count($msgs); $j++)  {			
+			if($msgs[$i]['score'] < $msgs[$j]['score'])	{
+				$tmp = $msgs[$i];
+				$msgs[$i] = $msgs[$j];
+				$msgs[$j] = $tmp;
+			}
+		}
+	}
+
+	// write the full set of ranked-by-score comments for this vibe
 	file_put_contents($CACHE_DIR . "c_full_$vibe_id.jsonp", 'jsonp_parse_comment_list(' .json_encode($msgs) . ');');
 
-	// add em all to our full tracker
-	// skip our special vibes
-	if($vibe_id != '@MEGASTREAM') {
+	// add all these comments to our full megalist tracker; skip our special vibes
+	if(!strstr($vibe_id, '@')) {
 		$every_single_comment = array_merge($every_single_comment, $msgs);
+	}
+
+	// rank the messages by a weighted score
+	for($i = 0; $i < count($msgs); $i++)	{
+		for($j = $i + 1; $j < count($msgs); $j++)  {
+			// weight it by comment age?
+			$weighted_timestamp_i = time_weighted_power($msgs[$i]['comment_relative_time']) + $msgs[$i]['score'];
+			$weighted_timestamp_j = time_weighted_power($msgs[$j]['comment_relative_time']) + $msgs[$j]['score'];
+
+			// weight it by content age?
+			$weighted_timestamp_i = time_weighted_power($msgs[$i]['context_meta']['content_relative_time']) + $msgs[$i]['score'];
+			$weighted_timestamp_j = time_weighted_power($msgs[$j]['context_meta']['content_relative_time']) + $msgs[$j]['score'];
+			
+			if($weighted_timestamp_i < $weighted_timestamp_j)	{
+				$tmp = $msgs[$i];
+				$msgs[$i] = $msgs[$j];
+				$msgs[$j] = $tmp;
+			}
+		}
 	}
 
 	// spit out a jsonp for this vibe; only one comment per post
@@ -580,11 +487,21 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 			// let's move on, we're covered here already
 		}
 	}
-	// resort this thing based on comment timestamp
+	
+	// resort this thing now on weighted timestamp
 	for($i = 0; $i < count($deduped_msgs); $i++)	{
 		for($j = $i + 1; $j < count($deduped_msgs); $j++)  {
+			// weight it by comment age and comment score?
 			$weighted_timestamp_i = time_weighted_power($deduped_msgs[$i]['comment_relative_time']) + $msgs[$i]['score'];
 			$weighted_timestamp_j = time_weighted_power($deduped_msgs[$j]['comment_relative_time']) + $msgs[$j]['score'];
+
+			// weight it by content age and comment score?
+			$weighted_timestamp_i = time_weighted_power($deduped_msgs[$i]['context_meta']['content_relative_time']) + $deduped_msgs[$i]['score'];
+			$weighted_timestamp_j = time_weighted_power($deduped_msgs[$j]['context_meta']['content_relative_time']) + $deduped_msgs[$j]['score'];			
+
+			// weight it by content age only?
+			$weighted_timestamp_i = time_weighted_power($deduped_msgs[$i]['context_meta']['content_relative_time']);
+			$weighted_timestamp_j = time_weighted_power($deduped_msgs[$j]['context_meta']['content_relative_time']);			
 
 			if($weighted_timestamp_i < $weighted_timestamp_j)	{
 				$tmp = $deduped_msgs[$i];
@@ -594,26 +511,27 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 		}
 	}
 
+	// NOT SURE WHY THIS IS HERE
+	// file_put_contents($CACHE_DIR . "c_$vibe_id.json", json_encode($deduped_msgs));
+
+	// write a jsonp that gets the pseudo vibe stream
 	file_put_contents($CACHE_DIR . "c_$vibe_id.jsonp", 'jsonp_parse_posts(' . json_encode($deduped_msgs) . ');');
 }
 
 fwrite($logp, '= starting to re-sort all comments' . "\n");
-// resort all comments by timestamp-weighted-score
+// resort all comments by NOT-WEIGHTED score
 for($i = 0; $i < count($every_single_comment); $i++)	{
 	for($j = $i + 1; $j < count($every_single_comment); $j++)	{
-		$weighted_timestamp_i = time_weighted_power($every_single_comment[$i]['comment_relative_time']) + $every_single_comment[$i]['score'];
-		$weighted_timestamp_j = time_weighted_power($every_single_comment[$j]['comment_relative_time']) + $every_single_comment[$j]['score'];
-
-		// echo "age:\t" . $every_single_comment[$j]['comment_relative_time'] . "\ntimestamp:\t" . $weighted_timestamp_j . "\n";;
-
-		if($weighted_timestamp_i < $weighted_timestamp_j)	{
+		// $weighted_timestamp_i = time_weighted_power($every_single_comment[$i]['comment_relative_time']) + $every_single_comment[$i]['score'];
+		// $weighted_timestamp_j = time_weighted_power($every_single_comment[$j]['comment_relative_time']) + $every_single_comment[$j]['score'];
+		
+		// if($weighted_timestamp_i < $weighted_timestamp_j)	{
+		if($every_single_comment[$i]['score'] < $every_single_comment[$j]['score'])	{		
 			$tmp = $every_single_comment[$i];
 			$every_single_comment[$i] = $every_single_comment[$j];
 			$every_single_comment[$j] = $tmp;
 		}
 	}	
-
-	// echo 'sorted ' . $i . " of " . count($every_single_comment) . "\n";
 }
 
 $multi_posters = (derive_multi_posters($every_single_comment));

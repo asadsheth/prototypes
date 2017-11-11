@@ -380,6 +380,10 @@ https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-I
         .i_contentbody h1, h2 {
             margin: 0;
         }
+        h1 a {
+            text-decoration: none;
+            color: inherit;
+        }
         .i_contentbody .provider_attribution    {
             font-size: 12px;
             opacity: 0.5;
@@ -391,13 +395,17 @@ https://s.yimg.com/cv/ae/default/171027/Yahoo_Sans_Web_Fonts_170914/Yahoo_Sans-I
             margin-bottom: 20px;
             margin-top: 20px;
         }
+        .i_contentbody .summary {
+            margin-bottom: 10px;
+        }
         .i_contentbody a.more {
             font-weight: normal;
             text-decoration: none;
             padding: 10px;
-            margin: 10px 0;
+            margin: 0px 0px 10px 0;
             color: black;
             display: inline-block;
+            display: none;
             color: white;
         }
 
@@ -520,13 +528,13 @@ document.addEventListener("DOMContentLoaded", function(event) {
         i_contentbody.className = 'i_contentbody parallax__layer parallax__layer--back';
         i_contentbody_string = '';
         // title
-        i_contentbody_string += '<h1>' + stories[i].title + '</h1>';
+        i_contentbody_string += '<h1>' + '<a href="' + stories[i].contentUrl + '">' + stories[i].title + '</a>' + '</h1>';
         // provider
         i_contentbody_string += '<div class="provider_attribution">' + stories[i].provider + '</div>';
         // separator
         i_contentbody_string += '<div class="separator" style="background: ' + theme_color + '; color: ' + theme_color +'">--</div>';
         // summary
-        i_contentbody_string += '<div>' + stories[i].summary +'</div>';
+        i_contentbody_string += '<div class="summary">' + stories[i].summary +'</div>';
         // wrap it up b
         i_contentbody.innerHTML = i_contentbody_string;
         // what do you do after this
