@@ -2,7 +2,9 @@
 // TODO BACKFILL WITH ROLE OF ALGO
 // TODO ADD TOP REPLY TO EACH COMMENT
 // TODO ADD THE OTHER TOP COMMENT TO COMPARE
-
+// DESIGN newsroom stream designs: https://www.dropbox.com/s/fm8k7g5my8dqd5i/explore1.png?dl=0
+// DESIGN newsroom stream designs (lighter): https://www.dropbox.com/s/sxf4hvnykvy8tcu/explore2.png?dl=0
+// DESIGN web mobile cards: https://www.dropbox.com/s/fwyladpe3m8vr0p/stream_master_nov13.png?dl=0
 error_reporting(0);
 set_time_limit(3600);
 ini_set('memory_limit', '512M');
@@ -25,7 +27,7 @@ $ADDITIONAL_VIBE_PAGES = 1;
 if($DEBUG)	{
 	$ALL_VIBES = array(
 		array( 'name' => '@Megastream', 'id' => '@MEGASTREAM' ),
-		// array( 'name' => '@MegaOTT', 'id' => '@MEGASTREAMVIDEO' ),
+		array( 'name' => '@MegaOTT', 'id' => '@MEGASTREAMVIDEO' ),
 		// array( 'name' => '[smartChrono] NBA', 'id' => 'e238b3d0-c6d5-11e5-af54-fa163e2c24a6', 'ranking' => 'smartChrono' ),
 		// array( 'name' => '[legacy] NBA', 'id' => 'e238b3d0-c6d5-11e5-af54-fa163e2c24a6', 'ranking' => 'ranked' )
 	);

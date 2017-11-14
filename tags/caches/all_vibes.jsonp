@@ -1,1 +1,1 @@
-jsonp_parse_vibes([{"name":"@Megastream","id":"@MEGASTREAM"}]);
+jsonp_parse_vibes([{"name":"@Megastream","id":"@MEGASTREAM"},{"name":"@MegaOTT","id":"@MEGASTREAMVIDEO"}]);
