@@ -20,221 +20,54 @@ fwrite($logp, '----------------------------' . "\n");
 // configs
 $CACHE_DIR = './caches/';
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
-$DEBUG = true;
-$ADDITIONAL_VIBE_PAGES = 1;
-// echo json_encode($ALL_VIBES); exit;
+$DEBUG = false;
+$ADDITIONAL_VIBE_PAGES = 0;
+$REPLY_FETCH_QUALITY_THRESHOLD = 0.99;
+$REPLY_FETCH_COUNT_THRESHOLD = 100;
+$COMMENTS_PER_POST = 5;
+$WHITELIST_COMMENTER_GUIDS = array(
+	'FI3SFWX5YUMNC57AOOIW2UTAC4' => 1, // asad
+	'6NOU2PIONBDXJJKHMGGFXT4ZNE' => 1, // rafi
+	'HRMMTS66W6MRK7JA2YM3LKR3DA' => 1, // tenni
+	'ET7XMWF2G3A3FTE3YEYZ2GAM7I' => 1  // cris
+);
 
 if($DEBUG)	{
 	$ALL_VIBES = array(
-		array( 'name' => '@Megastream', 'id' => '@MEGASTREAM' ),
-		array( 'name' => '@MegaOTT', 'id' => '@MEGASTREAMVIDEO' ),
-		// array( 'name' => '[smartChrono] NBA', 'id' => 'e238b3d0-c6d5-11e5-af54-fa163e2c24a6', 'ranking' => 'smartChrono' ),
+		// array( 'name' => '@Megastream', 'id' => '@MEGASTREAM' ),
+		array( 'name' => 'Featured', 'id' => '@NTKVIDEO' ),
+		array( 'name' => 'Recommended For You', 'id' => '@MEGASTREAMVIDEO' ),
+		array( 'name' => '[smartChrono] NBA', 'id' => 'e238b3d0-c6d5-11e5-af54-fa163e2c24a6', 'ranking' => 'smartChrono' ),
 		// array( 'name' => '[legacy] NBA', 'id' => 'e238b3d0-c6d5-11e5-af54-fa163e2c24a6', 'ranking' => 'ranked' )
 	);
 }
 
+// TODO MOVE THIS OVER TO UTILS AND USE IT
+// go get the list of suggested vibes from our editorial team
+function get_suggested_vibes() {
+	// featured by editorial?
+	$url = 'http://mobile-homerun-yql.vibe.production.omega.gq1.yahoo.com:4080/api/vibe/v1/featured/topics';
+	$response = file_get_contents($url);
+	$obj = json_decode($response, true);
+	$topics = $obj['topics']['result'];
+
+	return $topics;
+}
+
 // write the vibe list to disk
+file_put_contents($CACHE_DIR . "all_vibes.json", json_encode($ALL_VIBES));
 file_put_contents($CACHE_DIR . "all_vibes.jsonp", 'jsonp_parse_vibes(' . json_encode($ALL_VIBES) . ');');
-
-// FUNCTIONS
-
-function get_user_message_history($guid)	{
-	// http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/users/CZH3URRXXVIXWS6MYB6ZR3FJKQ/messages?region=US&lang=en-US
-}
-
-function get_uuid_to_vibes($all_comments)	{
-	$obj = $all_comments;
-	$uuid_to_vibes = array();
-
-	for($i = 0; $i < count($obj); $i++)	{
-		$uuid = $obj[$i]['context_meta']['content_id'];
-		$guid = $obj[$i]['author_guid'];
-		$vibe_name = $obj[$i]['context_meta']['vibe_name'];
-		$vibe_id = $obj[$i]['context_meta']['vibe_id'];
-
-		// skip our special vibes
-		if(!strstr($vibe_id, '@')) {
-			array_push($uuids[$uuid], $obj[$i]);
-
-			// build the article to vibe mapping
-			if(!isset($uuid_to_vibes[$uuid]))	{
-				$uuid_to_vibes[$uuid] = array();
-			}
-			$uuid_to_vibes[$uuid][$vibe_id] = $vibe_name;
-		}
-	}
-
-	return $uuid_to_vibes;
-}
-
-function derive_multi_posters($all_comments)	{
-	$obj = $all_comments;
-	$authors = array();
-
-	for($i = 0; $i < count($obj); $i++)	{
-		$uuid = $obj[$i]['context_meta']['content_id'];
-		$guid = $obj[$i]['author_guid'];
-		$vibe_name = $obj[$i]['context_meta']['vibe_name'];
-		$vibe_id = $obj[$i]['context_meta']['vibe_id'];
-
-		// skip our special vibes
-		if(!strstr($vibe_id, '@')) {
-			// build a map of article uuids with comments by author
-			if($guid != '1')	{
-				if(!isset($authors[$guid]))	{
-					$authors[$guid] = array();
-				}
-
-				$authors[$guid][$uuid] = true;
-			}
-		}
-	}
-
-	// go through and identify all the authors with multiple contributions
-	$multi_poster_guids = array();
-	foreach($authors as $guid => $bunch)	{
-		$uuid_count = 0;
-		
-		// count the uuids in the bunch
-		foreach($bunch as $uuid)	{
-			$uuid_count++;
-		}
-		
-		if($uuid_count > 1) array_push($multi_poster_guids, $guid);
-	}
-
-	return $multi_poster_guids;	
-}
 
 // content work
 for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	fwrite($logp, 'working on ' . $ALL_VIBES[$ind]['name'] . " - " . $ALL_VIBES[$ind]['id'] . "\n");
 
+	// go get the posts
+	$posts = get_vibe_posts($ALL_VIBES[$ind]);
+
 	// shortcuts
 	$vibe_id = $ALL_VIBES[$ind]['id'];
 	$vibe_name = $ALL_VIBES[$ind]['name'];
-	$vibe_ranking = isset($ALL_VIBES[$ind]['ranking']) ? $ALL_VIBES[$ind]['ranking'] : 'smartChrono';
-
-	// get local posts if they exist
-	if(
-		false 
-		&& file_exists($CACHE_DIR . "$vibe_id.json")
-	)	{
-		// it's on disk!
-		$posts = json_decode(file_get_contents($CACHE_DIR . "$vibe_id.json"), true);
-	}
-	else {
-		// start fresh
-		$posts = array();
-	}
-
-	// log what we had on disk, if any
-	fwrite($logp, 'local post count: ' . count($posts) . "\n");
-
-	// get the first page of posts - id, next token, ranking
-	$object = curl_post_stream($vibe_id, null, $vibe_ranking);
-
-	// log what we found
-	fwrite($logp, 'initial remote count: ' . count($object['items']['result']) . "\n");
-
-	// get the next page, as many times as config'd
-	$next_token = json_encode($object['meta']['result'][0]);
-	for($recurs = 0; $recurs < $ADDITIONAL_VIBE_PAGES; $recurs++)	{
-		// get the next items
-		$next_obj = (curl_post_stream($vibe_id, $next_token, $vibe_ranking)); 
-
-		// add them to the original object
-		for($i = 0; $i < count($next_obj['items']['result']); $i++) {
-			array_push($object['items']['result'], json_decode(json_encode($next_obj['items']['result'][$i]), true));
-		} 
-
-		// log what we found again
-		fwrite($logp, 'revised remote count: ' . count($object['items']['result']) . "\n");
-
-		// store the next token from this result
-		$next_token = json_encode($next_obj['meta']['result'][0]);
-	}
-
-	// parse it all
-	$provider_posts = 0;
-	$posted_posts = 0;
-	// note we go backwards here because later we push to the front of the list - this might not matter though as we re-sort anyway
-	for($i = 0; $i < count($object['items']['result']) ; $i++)	{
-		$obj = $object['items']['result'][$i];
-
-		// pull out the meta we need
-		$post_id = $obj['id'];
-		$post_url = $obj['postUrl'];
-		$author = $obj['author']['name'];
-		$lead_attribution = $obj['leadAttribution'];
-		$link = $obj['content']['url'];
-		$img = $obj['content']['images'][0]['originalUrl'];
-		$title = $obj['content']['title'];
-		$content_id = $obj['content']['uuid'];
-		$summary = $obj['content']['summary'];
-		$published_at = $obj['publishedAt'];
-		$topic = $obj['topics'][0]['name'];
-		$provider = $obj['content']['provider']['name'];
-		$comments_count = $obj['comments']['count'];
-		$content_url = $obj['content']['url'];
-		$content_published_at = $obj['content']['publishedAt'];
-
-		// just counting how many provider posts
-		if($lead_attribution == 'provider')	{
-			$provider_posts++;
-		}
-		else {
-			// do nothing
-		}
-		
-		// go through all the saved posts and see if this post already exists
-		$already_exists = false;
-		for($j = 0; $j < count($posts); $j++)	{
-			if(
-				$posts[$j]['post_id'] == $post_id ||
-				$posts[$j]['title'] == $title || 
-				$posts[$j]['content_id'] == $content_id
-			)	{
-				// already seen this one
-				$already_exists = true;
-			}
-		}
-
-		if(
-			!$already_exists
-			&& $lead_attribution == 'provider'
-		)	{
-			// add it to the front of the list!
-			array_unshift($posts, array(
-				'post_id' => $post_id,
-				'post_url' => $post_url,
-				'author' => $author,
-				'provider' => $provider,
-				'lead_attribution' => $lead_attribution,
-				'link' => $link,
-				'img' => $img,
-				'title' => $title,
-				'summary' => $summary,
-				'published_at' => $published_at,
-				'content_id' => $content_id,
-				'content_url' => $content_url,
-				'content_published_at' => $content_published_at,
-				'content_relative_time' => floor((time() - $content_published_at) / 3600),
-				'vibe_name' => $vibe_name,
-				'vibe_id' => $vibe_id
-			));
-		}
-		else {
-			// fwrite($logp, 'found an old post (or a ugc post): ' . "\n");
-			// fwrite($logp, $title . "\n");
-		}
-	}
-
-	// done looking through the new posts
-	fwrite($logp, 'total remote provider posts found: ' . $provider_posts . "\n");
-
-	// ok if we got here things went ok. trim the post list:
-	$posts = array_slice($posts, 0, $NUM_POSTS_TO_KEEP_PER_VIBE);
 
 	// write stuff to file
 	file_put_contents($CACHE_DIR . "$vibe_id.json", json_encode($posts));
@@ -244,102 +77,90 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 
 // let's go get comment info
 $every_single_comment = array();
-for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
+for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	fwrite($logp, 'working on comment requests for ' . $ALL_VIBES[$ind]['name'] . " - " . $ALL_VIBES[$ind]['id'] . "\n");
 
-	// id for this vibe
+	// shortcuts  for this vibe
 	$vibe_id = $ALL_VIBES[$ind]['id'];
 	$vibe_name = $ALL_VIBES[$ind]['name'];
 
-	// messages for this vibe
-	// TODO GET THIS FROM FILE FIRST IF IT EXISTS
-	$msgs = array();
-	
 	// all posts for this vibe we have (i think we just finished writing it here in the previous for loop)
 	$posts = json_decode(file_get_contents($CACHE_DIR . "$vibe_id.json"), true);
 
+	// messages for this whole vibe
+	// TODO GET THIS FROM FILE FIRST IF IT EXISTS
+	// $msgs = get_vibe_messages($posts);
+	$msgs = array();
+
 	for($i = 0; $i < count($posts); $i++)	{		
-		fwrite($logp, $vibe_name . ': working on comment requests for post #' . $i . ' - ' . $posts[$i]['title'] . "\n");
-		// extract($posts[$i]);
-		// echo 'title: ' . $title . "\n";
-		// echo 'provider: ' . $provider . "\n";
-		// echo 'content id: ' . $content_id . "\n";
-		// echo 'post age: ' . (time() - $published_at) / 3600 . "\n";
-		// echo 'content url: ' . $content_url . "\n";
-		// echo 'content published at: ' . (time() - $content_published_at) / 3600 . "\n";
-		// echo "\n";
+		// fwrite($logp, $vibe_name . ': working on comment requests for post #' . $i . ' - ' . $posts[$i]['title'] . "\n");
 
-		// canvass request
-		$canvass_request_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/' . $posts[$i]['content_id'] . '/messages?count=30&sortBy=popular&region=US&lang=en-US&rankingProfile=canvassHalfLifeDecayProfile&userActivity=true';
+		// call the function to get comments for this context
+		// $messages_for_this_post = get_context_comments($posts[$i]['content_id']);
+		// ^^ ORRRR artificially suppress comments; only whitelisted comments will end up showing up here
+		$messages = array();
 
-		fwrite($logp, $canvass_request_url . "\n");
-
-		$canvass_response = file_get_contents($canvass_request_url);
-		$canvass_response_object = json_decode($canvass_response, true);
-		$messages = $canvass_response_object['canvassMessages'];
-
-		// go through all them messages
+		// go through all them message and see if we got any
 		$found_message = false;
-		for($j = 0; $j < count($messages); $j++)	{
-			$message_text = $messages[$j]['details']['userText'];
-			$message_id = $messages[$j]['messageId'];
-			$message_upvotes = $messages[$j]['reactionStats']['upVoteCount'];
-			$message_downvotes = $messages[$j]['reactionStats']['downVoteCount'];
-			$message_reports = $messages[$j]['reactionStats']['abuseVoteCount'];
-			$message_replies = $messages[$j]['reactionStats']['replyCount'];
-			$message_author_name = $messages[$j]['meta']['author']['nickname'];
-			$message_author_img = $messages[$j]['meta']['author']['image']['url'];
-			$message_author_guid = $messages[$j]['meta']['author']['guid'];
-			$message_context_id = $messages[$j]['contextId'];
-			$message_context_meta = json_decode(json_encode($posts[$i]), true);
-			$message_created_at = $messages[$j]['meta']['createdAt'];
-			$score = reddit_score($message_upvotes, $message_downvotes, $message_reports);
-
-			$msg = array(
-				'text' => $message_text,
-				'message_id' => $message_id,
-				'context_id' => $message_context_id,
-				'upvotes' => $message_upvotes,
-				'downvotes' => $message_downvotes,
-				'reports' => $message_reports,
-				'replies' => $message_replies,
-				'author_name' => $message_author_name,
-				'author_img' => $message_author_img,
-				'author_guid' => $message_author_guid,
-				'score' => $score,
-				'context_meta' => $message_context_meta,
-				'created_at' => $message_created_at,
-				'comment_relative_time' => floor((time() - $message_created_at) / 3600),
-				'bot' => false
-			);
+		// $post_comment_blob = '';
+		for($j = 0; $j < count($messages_for_this_post); $j++)	{
+			$msg = create_msg_from_canvass_response($messages_for_this_post[$j], $posts[$i]);
 
 			if(
 				// author is real? comment not deleted?
-				isset($message_author_name)
-				&& isset($message_author_img)
+				isset($msg['author_name'])
+				&& isset($msg['author_img'])
 				// upvotes is not negligible?
 				// && $uv > 1
 				// comment text doesn't have "yahoo" in it?
-				&& !strstr(strtolower($message_text), 'yahoo')
+				&& !strstr(strtolower($msg['text']), 'yahoo')
 			)	{
-				array_unshift($msgs, $msg);
-				$found_message = true;				
+				// add it to the end!
+				array_push($msgs, $msg);
+				$found_message = true;
+				// track the blob for later
+				// $post_comment_blob .= $message_text . ' ';
 			}
 		}
 
+		/*
+		// TODO split the blob and tag cloud logic out into a function
+		// split the blob
+		$post_comment_tokens = explode(' ', $post_comment_blob);
+		$post_comment_token_histogram = array();
+		$post_comment_bigram_histogram = array();
+		// this is disabled for now
+		for($j = 0; false && $j < count($post_comment_tokens); $j++)	{
+			$post_comment_tokens[$j] = strtolower(trim($post_comment_tokens[$j], "\W\.\?\,\!"));
+			$token = $post_comment_tokens[$j];
+
+			if(strlen($token) == 0) continue;
+
+			if($j > 0 && j < count($post_comment_tokens) - 1)	{
+				$bigram = $post_comment_tokens[$j - 1] . ' ' . $post_comment_tokens[$j];
+				$post_comment_bigram_histogram[$bigram] = isset($post_comment_bigram_histogram[$bigram]) ? ($post_comment_bigram_histogram[$bigram] + 1) : 1;
+			}
+
+			$post_comment_token_histogram[$token] = isset($post_comment_token_histogram[$token]) ? ($post_comment_token_histogram[$token] + 1) : 1;
+		}
+		// checking to see if it's an empty histogram
+		if(strlen(json_encode($post_comment_token_histogram)) > 5000) {
+			// echo json_encode($post_comment_token_histogram);
+			// exit;
+		}
+		*/
+
+		// now package this post to be shown - comment first, or bot first when there are no comments
 		if($found_message)	{
 			// good!
-			// could get replies?
-			// echo $canvass_request_url; exit;
-			// $replies_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/062d0147-9039-3271-929a-e1dc1c216716/messages/dc9571ba-2ff2-431b-8226-e56ba6d42766/replies?region=US&lang=en-US&count=50';
-			// $reply_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/' . $context_id . '/messages/' . $message_id . '/replies?region=US&lang=en-US&count=50';
 		}
 		else {
-			// oops, let's just hack this post together and pretend our bot posted it
-			array_unshift($msgs, array(
+			// oops, let's just add a "comment" to hack this post together and pretend our bot posted it
+			array_push($msgs, array(
 				'text' => null,
 				'message_id' => '?',
-				'context_id' => '?',
+				'context_id' => $posts[$i]['content_id'],
+				'post_id' => $posts[$i]['post_id'],
 				'upvotes' => '0',
 				'downvotes' => '0',
 				'reports' => '0',
@@ -350,23 +171,31 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 				'score' => 0,
 				'context_meta' => json_decode(json_encode($posts[$i]), true),
 				'created_at' => 0,
+				'comment_time' => $posts[$i]['content_relative_time'],				
 				'comment_relative_time' => $posts[$i]['content_relative_time'],
-				'bot' => true
+				'bot' => true,
+				'whitelisted_commenter' => false
 			));
 		}
 	}
 
-	// go through what we've got now and figure out the reply situation
+	// done with ALL the posts for this vibe
+
+	// go through what we've got now for this whole vibe and figure out the reply situation
 	for($i = 0; $i < count($msgs); $i++)	{
 		if(
+			// skip posts we already know had no messages
 			$msgs[$i]['message_id'] == '?'
-			|| $msgs[$i]['replies'] < 3
-			|| $msgs[$i]['score'] < 0.85	
+			// skip messages with few replies
+			|| $msgs[$i]['replies'] < $REPLY_FETCH_COUNT_THRESHOLD
+			// skip messages where the message itself is low quality
+			|| $msgs[$i]['score'] < $REPLY_FETCH_QUALITY_THRESHOLD
 		) {
-			// oops, this one is not a user comment orrr it has no replies or it sucks
+			// oops, this one is not a user comment orrr it has no replies or it is low-scoring
 			continue;
 		}
 		else {
+			echo $i . "\n";
 			fwrite($logp, $vibe_name . ': working on comment replies for message #' . $i . ' of ' . count($msgs) . "\n");
 			$replies_obj = curl_canvass_replies($msgs[$i]['context_id'], $msgs[$i]['message_id']);
 			$reply_list = $replies_obj['canvassReplies'];
@@ -419,12 +248,12 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 				}
 			}
 
-			// only store one reply at this point
+			// only store one reply to the message at this point
 			$msgs[$i]['ripostes'] = $reps[0];
 		}
 	}
 
-	// before we do any re-sorting, write a raw deduped post list. this should match the stream sorting. start by spitting out a jsonp for this vibe; only one comment per post
+	// before we do any re-sorting, write a raw deduped post list. this should match the stream sorting. start by spitting out a jsonp for this vibe; only one comment per post - the algo "top" comment
 	$seen_posts = array();
 	$deduped_msgs = array();
 	for($i = 0; $i < count($msgs); $i++)	{
@@ -439,10 +268,28 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 	file_put_contents($CACHE_DIR . "c_rawrank_$vibe_id.json", json_encode($deduped_msgs));	
 	file_put_contents($CACHE_DIR . "c_rawrank_$vibe_id.jsonp", 'jsonp_parse_posts(' .json_encode($deduped_msgs) . ');');
 
+	// TODO now re-rank by just tiered content time
+	// for($i = 0; $i < count($msgs); $i++)	{
+		// for($j = $i + 1; $j < count($msgs); $j++)  {			
+			// if($msgs[$i]['score'] < $msgs[$j]['score'])	{
+				// $tmp = $msgs[$i];
+				// $msgs[$i] = $msgs[$j];
+				// $msgs[$j] = $tmp;
+			// }
+		// }
+	// }
+
 	// now just rank all of the messages by message score
 	for($i = 0; $i < count($msgs); $i++)	{
 		for($j = $i + 1; $j < count($msgs); $j++)  {			
-			if($msgs[$i]['score'] < $msgs[$j]['score'])	{
+			// don't demote whitelisted dudes
+			if($msgs[$i]['whitelisted_commenter']) continue;
+
+			if(
+				$msgs[$i]['score'] < $msgs[$j]['score']
+				// or check if the commenter is whitelisted!
+				|| $msgs[$j]['whitelisted_commenter']
+			)	{
 				$tmp = $msgs[$i];
 				$msgs[$i] = $msgs[$j];
 				$msgs[$j] = $tmp;
@@ -451,6 +298,7 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 	}
 
 	// write the full set of ranked-by-score comments for this vibe
+	file_put_contents($CACHE_DIR . "c_full_$vibe_id.json", json_encode($msgs));
 	file_put_contents($CACHE_DIR . "c_full_$vibe_id.jsonp", 'jsonp_parse_comment_list(' .json_encode($msgs) . ');');
 
 	// add all these comments to our full megalist tracker; skip our special vibes
@@ -459,17 +307,24 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 	}
 
 	// rank the messages by a weighted score
-	for($i = 0; $i < count($msgs); $i++)	{
+	for($i = 0; $i < count($msgs); $i++)	{		
 		for($j = $i + 1; $j < count($msgs); $j++)  {
+			// don't demote whitelisted dudes
+			if($msgs[$i]['whitelisted_commenter']) continue;
+
 			// weight it by comment age?
-			$weighted_timestamp_i = time_weighted_power($msgs[$i]['comment_relative_time']) + $msgs[$i]['score'];
-			$weighted_timestamp_j = time_weighted_power($msgs[$j]['comment_relative_time']) + $msgs[$j]['score'];
+			// $weighted_timestamp_i = time_weighted_power($msgs[$i]['comment_relative_time']) + $msgs[$i]['score'];
+			// $weighted_timestamp_j = time_weighted_power($msgs[$j]['comment_relative_time']) + $msgs[$j]['score'];
 
 			// weight it by content age?
 			$weighted_timestamp_i = time_weighted_power($msgs[$i]['context_meta']['content_relative_time']) + $msgs[$i]['score'];
 			$weighted_timestamp_j = time_weighted_power($msgs[$j]['context_meta']['content_relative_time']) + $msgs[$j]['score'];
 			
-			if($weighted_timestamp_i < $weighted_timestamp_j)	{
+			if(
+				$weighted_timestamp_i < $weighted_timestamp_j
+				// or check if the latter is one of our blessed commenters! if so move them forward
+				|| $msgs[$j]['whitelisted_commenter']
+			)	{
 				$tmp = $msgs[$i];
 				$msgs[$i] = $msgs[$j];
 				$msgs[$j] = $tmp;
@@ -493,19 +348,26 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 	// resort this thing now on weighted timestamp
 	for($i = 0; $i < count($deduped_msgs); $i++)	{
 		for($j = $i + 1; $j < count($deduped_msgs); $j++)  {
+			// don't demote whitelisted dudes
+			if($deduped_msgs[$i]['whitelisted_commenter']) continue;
+
 			// weight it by comment age and comment score?
-			$weighted_timestamp_i = time_weighted_power($deduped_msgs[$i]['comment_relative_time']) + $msgs[$i]['score'];
-			$weighted_timestamp_j = time_weighted_power($deduped_msgs[$j]['comment_relative_time']) + $msgs[$j]['score'];
+			// $weighted_timestamp_i = time_weighted_power($deduped_msgs[$i]['comment_relative_time']) + $msgs[$i]['score'];
+			// $weighted_timestamp_j = time_weighted_power($deduped_msgs[$j]['comment_relative_time']) + $msgs[$j]['score'];
 
 			// weight it by content age and comment score?
-			$weighted_timestamp_i = time_weighted_power($deduped_msgs[$i]['context_meta']['content_relative_time']) + $deduped_msgs[$i]['score'];
-			$weighted_timestamp_j = time_weighted_power($deduped_msgs[$j]['context_meta']['content_relative_time']) + $deduped_msgs[$j]['score'];			
+			// $weighted_timestamp_i = time_weighted_power($deduped_msgs[$i]['context_meta']['content_relative_time']) + $deduped_msgs[$i]['score'];
+			// $weighted_timestamp_j = time_weighted_power($deduped_msgs[$j]['context_meta']['content_relative_time']) + $deduped_msgs[$j]['score'];			
 
 			// weight it by content age only?
 			$weighted_timestamp_i = time_weighted_power($deduped_msgs[$i]['context_meta']['content_relative_time']);
 			$weighted_timestamp_j = time_weighted_power($deduped_msgs[$j]['context_meta']['content_relative_time']);			
 
-			if($weighted_timestamp_i < $weighted_timestamp_j)	{
+			if(
+				$weighted_timestamp_i < $weighted_timestamp_j
+				// or whitelisted commenter?
+				|| $deduped_msgs[$j]['whitelisted_commenter']
+			)	{
 				$tmp = $deduped_msgs[$i];
 				$deduped_msgs[$i] = $deduped_msgs[$j];
 				$deduped_msgs[$j] = $tmp;
@@ -513,34 +375,192 @@ for($ind = 0; $ind < count($ALL_VIBES) && true; $ind++)	{
 		}
 	}
 
-	// NOT SURE WHY THIS IS HERE
-	// file_put_contents($CACHE_DIR . "c_$vibe_id.json", json_encode($deduped_msgs));
-
-	// write a jsonp that gets the pseudo vibe stream
+	// write a file that represents the pseudo vibe stream, ranked and with a single comment
+	file_put_contents($CACHE_DIR . "c_$vibe_id.json", json_encode($deduped_msgs));
 	file_put_contents($CACHE_DIR . "c_$vibe_id.jsonp", 'jsonp_parse_posts(' . json_encode($deduped_msgs) . ');');
 }
 
-fwrite($logp, '= starting to re-sort all comments' . "\n");
-// resort all comments by NOT-WEIGHTED score
+fwrite($logp, '======= starting to re-sort all comments' . "\n");
+// resort all comments by score
 for($i = 0; $i < count($every_single_comment); $i++)	{
 	for($j = $i + 1; $j < count($every_single_comment); $j++)	{
-		// $weighted_timestamp_i = time_weighted_power($every_single_comment[$i]['comment_relative_time']) + $every_single_comment[$i]['score'];
-		// $weighted_timestamp_j = time_weighted_power($every_single_comment[$j]['comment_relative_time']) + $every_single_comment[$j]['score'];
+		// don't demote whitelisted dudes
+		if($every_single_comment[$i]['whitelisted_commenter']) continue;
+
+		// time weighted score
+		$weighted_timestamp_i = time_weighted_power($every_single_comment[$i]['comment_relative_time']) + $every_single_comment[$i]['score'];
+		$weighted_timestamp_j = time_weighted_power($every_single_comment[$j]['comment_relative_time']) + $every_single_comment[$j]['score'];
+
+		// non-weighted score
+		$weighted_timestamp_i = $every_single_comment[$i]['score'];
+		$weighted_timestamp_j = $every_single_comment[$j]['score'];
 		
-		// if($weighted_timestamp_i < $weighted_timestamp_j)	{
-		if($every_single_comment[$i]['score'] < $every_single_comment[$j]['score'])	{		
+		if(
+			$weighted_timestamp_i < $weighted_timestamp_j
+			|| $every_single_comment[$j]['whitelisted_commenter']
+		)	{
 			$tmp = $every_single_comment[$i];
 			$every_single_comment[$i] = $every_single_comment[$j];
 			$every_single_comment[$j] = $tmp;
 		}
 	}	
 }
+fwrite($logp, '======= done re-sorting all comments' . "\n");
 
-$multi_posters = (derive_multi_posters($every_single_comment));
-$uuid_to_vibes = (get_uuid_to_vibes($every_single_comment));
-
+// write out the full list of comments
 file_put_contents($CACHE_DIR . "c_allvibes.jsonp", 'jsonp_parse_all_comments(' . json_encode($every_single_comment) . ')'); 
 file_put_contents($CACHE_DIR . "c_allvibes.json", json_encode($every_single_comment)); 
+
+// deeper analysis
+// fwrite($logp, '======= deeper analysis: multiposters' . "\n");
+// $multi_posters = (derive_multi_posters($every_single_comment));
+// write this set of users to file
+// file_put_contents($CACHE_DIR . "multi_posters.json", json_encode($multi_posters));
+// file_put_contents($CACHE_DIR . "multi_posters.jsonp", 'jsonp_parse_multi_posters(' .json_encode($multi_posters) . ');');
+// write each user's history
+// for($i = 0; $i < count($multi_posters); $i++)	{
+	// $guid = $multi_posters[$i];
+	// $msgs = get_user_message_history($guid);
+
+	// write this individual user history to file
+	// file_put_contents($CACHE_DIR . "user_history_$guid.json", json_encode($msgs));
+	// write this individual history to a callable file
+	// file_put_contents($CACHE_DIR . "user_history_$guid.jsonp", 'jsonp_parse_user_history(' .json_encode($msgs) . ');');
+// }
+// fwrite($logp, '======= deeper analysis: uuid_to_vibes' . "\n");
+// $uuid_to_vibes = (get_uuid_to_vibes($every_single_comment));
+// fwrite($logp, '======= done with deeper analysis' . "\n");
+
+
+// write out a superset of all vibes for a full home stream
+fwrite($logp, '======= starting amalgamation' . "\n");
+$amalgam = array();
+for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
+	// shortcuts
+	$vibe_id = $ALL_VIBES[$ind]['id'];
+	$vibe_name = $ALL_VIBES[$ind]['name'];
+	$vibe_meta = $ALL_VIBES[$ind]['meta'];
+	fwrite($logp, 'amalgamation for ' . $vibe_name . "\n");
+
+	$vibe_posts = json_decode(file_get_contents($CACHE_DIR . "$vibe_id.json"), true);
+	$vibe_comments = json_decode(file_get_contents($CACHE_DIR . "c_full_$vibe_id.json"), true);
+	$vibe_postscomments = json_decode(file_get_contents($CACHE_DIR . "c_$vibe_id.json"), true);
+
+	// filter postscomments for this vibe for rules, e.g. whitelists
+	$whitelisted_messages = get_whitelisted_comments();
+	for($i = 0; $i < count($vibe_postscomments); $i++) {
+
+		// this first if statement checks if any of our whitelisted commenters have posted on this story
+		if(isset($whitelisted_messages[$vibe_postscomments[$i]['context_id']])) {
+			// replace this in the current list with the whitelisted one
+			$keys_to_copy = array(
+				'author_guid',
+				'author_img',
+				'author_name',
+				'comment_relative_time',
+				'comment_time',
+				'created_at',
+				'downvotes',
+				'replies',
+				'reports',
+				'text',
+				'upvotes'
+			);
+
+			// copy the keys over
+			for($j = 0; $j < count($keys_to_copy); $j++)	{
+				$vibe_postscomments[$i][$keys_to_copy[$j]] = $whitelisted_messages[$vibe_postscomments[$i]['context_id']][$keys_to_copy[$j]];
+			}
+
+			// hack to introduce diversity in our whitelisted commenters, even though they're all asad ;)
+			$random_commenter_names = array(
+				'aescalus',
+				'brienne',
+				'Snoop247',
+				'OmarFromTheWire',
+				'gettyImagines',
+				'Thumbelina.3',
+				'carbonarofx',
+				'dope-o-mine'
+			);
+			if($vibe_postscomments[$i]['author_guid'] == 'FI3SFWX5YUMNC57AOOIW2UTAC4') {
+				$vibe_postscomments[$i]['author_name'] = $random_commenter_names[array_rand($random_commenter_names)];
+			}
+			
+			// housekeeping to ensure that our proprietary fields work
+			$vibe_postscomments[$i]['bot'] = false;
+			$vibe_postscomments[$i]['score'] = 1;
+			$vibe_postscomments[$i]['whitelisted_commenter'] = true;
+		}
+
+		// if the organically ranked comment happened to come from a whitelisted commenter... (super unlikely, right?)
+		if(
+			$vibe_postscomments[$i]['whitelisted_commenter']
+		)	{
+			// good! feature this comment on the main stream
+		}
+		else {
+			// no! bad commenter! pretend this is a bot post
+			$vibe_postscomments[$i]['bot'] = true;
+		}
+	}
+
+	// add this vibe to the full array
+	array_push($amalgam, array(
+		'id' => $vibe_id,
+		'name' => $vibe_name,
+		'meta' => $vibe_meta,
+		'posts' => $vibe_posts,
+		'comments' => $vibe_comments,
+		'postscomments' => $vibe_postscomments
+	));
+}
+
+// re-sort the vibe cards by most recently updated
+for($i = 0; $i < count($amalgam); $i++)	{
+	for($j = $i + 1; $j < count($amalgam); $j++)	{
+		// shortcuts
+		$i_vibe_id = $amalgam[$i]['id'];
+		$i_vibe_name = $amalgam[$i]['name'];
+		$i_vibe_posts = $amalgam[$i]['posts'];
+
+		if(strstr($i_vibe_id, '@')) {
+			$amalgam[$i]['type'] = $i_vibe_id;
+		}
+		else {
+			$amalgam[$i]['type'] = 'VIBE';
+			$j_vibe_posts = $amalgam[$j]['posts'];
+
+			$max_i_pub_at = 0;
+			for($k = 0; $k < count($i_vibe_posts); $k++)	{
+				$max_i_pub_at = max($max_i_pub_at, $i_vibe_posts[$k]['content_published_at']);
+			}
+
+			$max_j_pub_at = 0;
+			for($k = 0; $k < count($j_vibe_posts); $k++)	{
+				$max_j_pub_at = max($max_j_pub_at, $j_vibe_posts[$k]['content_published_at']);
+			}
+
+			// echo $max_i_pub_at . ':' . $max_j_pub_at . "\n";
+
+			if($max_i_pub_at < $max_j_pub_at)	{
+				$tmp = $amalgam[$i];
+				$amalgam[$i] = $amalgam[$j];
+				$amalgam[$j] = $tmp;
+			}
+		}
+	}	
+}
+
+// add suggested vibes
+// $sugg_vibes = get_suggested_vibes();
+// write it out
+
+// write the amalgamation to disk
+file_put_contents($CACHE_DIR . "amalgam.json", json_encode($amalgam));
+file_put_contents($CACHE_DIR . "amalgam.jsonp", 'jsonp_parse_amalgam(' . json_encode($amalgam) . ');');
+
+fwrite($logp, '======= done amalgamation' . "\n");
 
 fwrite($logp, '=================== END' . "\n");
 fclose($logp);

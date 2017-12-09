@@ -1,4 +1,8 @@
 <?php
+// apis for later use
+// RELATED CONTENT FOR A UUID:
+// http://ga-hr.slingstone.yahoo.com:4080/score/v9/homerun/en-US/unified/get_increased_related_content?enable.relatedstory.feature.cache=false&rs_min_one_cluster=2&storyline_count=20&uuids=aad0dd21-0b10-3b4e-8638-9a64ee752ff5&debug=true&tracelevel=10&storyline_fallback=true
+
 // get a time base weight (a power of 2 here) that can be used to tier-chrono sort things
 function time_weighted_power($age, $base = 2)	{
 	$exponent = max(10 - floor(log($age + 1) / log($base)), 0);
@@ -31,14 +35,22 @@ function curl_post_stream($vibe_id, $next, $ranking = 'ranked')	{
 			// get the main stream
 			$url = 	'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/streams/blended';
 		}
-		if($vibe_id == '@MEGASTREAMVIDEO')	{
+		else if($vibe_id == '@MEGASTREAMVIDEO')	{
 			// get the voltron main stream
 			$url = 	'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/debug/v2/streams/blended?lang=en-US&region=US&enableNewsroomOTT=true';
 		}
+		else if($vibe_id == '@NTKVIDEO')	{
+			// get the voltron main stream
+			$url = 	'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/debug/v2/streams/blended?lang=en-US&region=US&enableNewsroomOTT=true';
+		}
+		else if($vibe_id == '@MEGASTREAMVIDEODWELLTIME') {
+			// DISREGARD ME FOR NOW, THIS IS NOT THOUGHT OUT
+			// 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/debug/v2/streams/blended?lang=en-US&region=US&enableNewsroomOTT=true'
+		}
 	}
 	else {
-		if($ranking == 'smartChrono') $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/smartChronoStream?lang=en-US&region=US';
-		else if($ranking == 'ranked') $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/rankedStream?lang=en-US&region=US';		
+		if($ranking == 'smartChrono') $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/smartChronoStream?lang=en-US&region=US&enableNewsroomOTT=true';
+		else if($ranking == 'ranked') $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/rankedStream?lang=en-US&region=US&enableNewsroomOTT=true';		
 	}
 
 	// looking for a second page?
@@ -70,6 +82,11 @@ function curl_post_stream($vibe_id, $next, $ranking = 'ranked')	{
 			'result' => array()
 		)
 	);
+
+	if($vibe_id == '@NTKVIDEO' && isset($next))	{
+		return $object;
+	}
+
 	$response = curl_exec($wh);
 	$httpCode = curl_getinfo($wh, CURLINFO_HTTP_CODE);
 	curl_close($wh);           
@@ -84,13 +101,15 @@ function curl_post_stream($vibe_id, $next, $ranking = 'ranked')	{
 	}
 	catch(Exception $e) {
 		// oops something broke just write back what we had before
-		fwrite($logp, 'ooooops hit an exception while requesting new posts' . "\n");
-		file_put_contents($CACHE_DIR . "$vibe_id.json", json_encode($posts));
 	    return $object;
 	}
 
 	// special handling for the special vibes
-	if(
+	if($vibe_id == '@NTKVIDEO') {
+		$ntk_items = $object['items']['result'][0]['items'];
+		$object['items']['result'] = $ntk_items;
+	}
+	else if(
 		$vibe_id == '@MEGASTREAM'
 		|| $vibe_id == '@MEGASTREAMVIDEO'
 	)	{
@@ -118,4 +137,328 @@ function curl_canvass_replies($context_id, $message_id)	{
 	return $reply_response_object; 
 }
 
+// function that gets all messages for a given user
+function get_user_message_history($guid)	{
+	$url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/users/' . $guid . '/messages?region=US&lang=en-US&count=30';
+	$response = file_get_contents($url);
+	$response_object = json_decode($response, true);
+	$messages = $response_object['canvassMessages'];
+	
+	$msgs = array();
+	for($j = 0; $j < count($messages); $j++) {
+		$message_text = $messages[$j]['details']['userText'];
+		$message_id = $messages[$j]['messageId'];
+		$message_upvotes = $messages[$j]['reactionStats']['upVoteCount'];
+		$message_downvotes = $messages[$j]['reactionStats']['downVoteCount'];
+		$message_reports = $messages[$j]['reactionStats']['abuseVoteCount'];
+		$message_replies = $messages[$j]['reactionStats']['replyCount'];
+		$message_author_name = $messages[$j]['meta']['author']['nickname'];
+		$message_author_img = $messages[$j]['meta']['author']['image']['url'];
+		$message_author_guid = $messages[$j]['meta']['author']['guid'];
+		$message_context_id = $messages[$j]['contextId'];
+		// $message_context_meta = json_decode(json_encode($posts[$i]), true);
+		$message_context_info = $messages[$j]['meta']['contextInfo'];
+		$message_created_at = $messages[$j]['meta']['createdAt'];
+		$score = reddit_score($message_upvotes, $message_downvotes, $message_reports);
+
+		$msg = array(
+			'text' => $message_text,
+			'message_id' => $message_id,
+			'context_id' => $message_context_id,
+			'upvotes' => $message_upvotes,
+			'downvotes' => $message_downvotes,
+			'reports' => $message_reports,
+			'replies' => $message_replies,
+			'author_name' => $message_author_name,
+			'author_img' => $message_author_img,
+			'author_guid' => $message_author_guid,
+			'score' => $score,
+			'context_meta' => null,
+			'context_info' => $message_context_info,
+			'created_at' => $message_created_at,
+			'comment_relative_time' => floor((time() - $message_created_at) / 3600),
+			'bot' => false
+		);
+
+		array_push($msgs, $msg);
+	}
+
+	return $msgs;
+}
+
+// function that goes through all my comments and constructs a article-uuid-to-vibes map; can show which articles show up in multiple vibes
+function get_uuid_to_vibes($all_comments)	{
+	$obj = $all_comments;
+	$uuid_to_vibes = array();
+
+	for($i = 0; $i < count($obj); $i++)	{
+		$uuid = $obj[$i]['context_meta']['content_id'];
+		$guid = $obj[$i]['author_guid'];
+		$vibe_name = $obj[$i]['context_meta']['vibe_name'];
+		$vibe_id = $obj[$i]['context_meta']['vibe_id'];
+
+		// skip our special vibes
+		if(!strstr($vibe_id, '@')) {
+			array_push($uuids[$uuid], $obj[$i]);
+
+			// build the article to vibe mapping
+			if(!isset($uuid_to_vibes[$uuid]))	{
+				$uuid_to_vibes[$uuid] = array();
+			}
+			$uuid_to_vibes[$uuid][$vibe_id] = $vibe_name;
+		}
+	}
+
+	return $uuid_to_vibes;
+}
+
+// function that goes through all comments and figures out who posted multiple comments
+function derive_multi_posters($all_comments)	{
+	$obj = $all_comments;
+	$authors = array();
+
+	for($i = 0; $i < count($obj); $i++)	{
+		$uuid = $obj[$i]['context_meta']['content_id'];
+		$guid = $obj[$i]['author_guid'];
+		$vibe_name = $obj[$i]['context_meta']['vibe_name'];
+		$vibe_id = $obj[$i]['context_meta']['vibe_id'];
+
+		// skip our special vibes
+		if(!strstr($vibe_id, '@')) {
+			// build a map of article uuids with comments by author
+			if($guid != '1')	{
+				if(!isset($authors[$guid]))	{
+					$authors[$guid] = array();
+				}
+
+				$authors[$guid][$uuid] = true;
+			}
+		}
+	}
+
+	// go through and identify all the authors with multiple contributions
+	$multi_poster_guids = array();
+	foreach($authors as $guid => $bunch)	{
+		$uuid_count = 0;
+		
+		// count the uuids in the bunch
+		foreach($bunch as $uuid)	{
+			$uuid_count++;
+		}
+		
+		if($uuid_count > 1) array_push($multi_poster_guids, $guid);
+	}
+
+	return $multi_poster_guids;	
+}
+
+function create_post_from_posts_response($obj)	{
+
+}
+
+// takes a vibe obj (id, name, ranking algo to be used) as input, sends back posts
+function get_vibe_posts($vibe_obj) {
+	global $logp;
+	global $ADDITIONAL_VIBE_PAGES;
+	global $NUM_POSTS_TO_KEEP_PER_VIBE;
+
+	$vibe_id = $vibe_obj['id'];
+	$vibe_name = $vibe_obj['name'];
+	$vibe_ranking = isset($vibe_obj['ranking']) ? $vibe_obj['ranking'] : 'smartChrono';
+
+	// get local posts if they exist
+	// (currently disabled - no local post caching)
+	if(
+		false 
+		&& file_exists($CACHE_DIR . "$vibe_id.json")
+	)	{
+		// it's on disk!
+		$posts = json_decode(file_get_contents($CACHE_DIR . "$vibe_id.json"), true);
+	}
+	else {
+		// start fresh
+		$posts = array();
+	}
+
+	// get the first page of posts - id, next token, ranking
+	$object = curl_post_stream($vibe_id, null, $vibe_ranking);
+	// log what we found
+	// fwrite($logp, 'initial remote count: ' . count($object['items']['result']) . "\n");
+
+	// recursively get the next page, as many times as config'd
+	$next_token = json_encode($object['meta']['result'][0]);
+	for($recurs = 0; $recurs < $ADDITIONAL_VIBE_PAGES; $recurs++)	{
+		// get the next items
+		$next_obj = (curl_post_stream($vibe_id, $next_token, $vibe_ranking)); 
+
+		// add them to the original object
+		for($i = 0; $i < count($next_obj['items']['result']); $i++) {
+			array_push($object['items']['result'], json_decode(json_encode($next_obj['items']['result'][$i]), true));
+		}
+
+		// log what we found again
+		fwrite($logp, 'revised remote count: ' . count($object['items']['result']) . "\n");
+
+		// store the next token from this result in case this loop runs again
+		$next_token = json_encode($next_obj['meta']['result'][0]);
+	}
+
+	// go through all the posts and pre-parse
+	for($i = 0; $i < count($object['items']['result']); $i++)	{
+		// make it easier to parse
+		$obj = $object['items']['result'][$i];
+
+		// pull out the meta we need
+		$post_id = $obj['id'];
+		$post_url = $obj['postUrl'];
+		$author = $obj['author']['name'];
+		$lead_attribution = $obj['leadAttribution'];
+		$link = $obj['content']['url'];
+		$img = $obj['content']['images'][0]['originalUrl'];
+		$resolutions = $obj['content']['images'][0]['resolutions'];
+		$imgh = $obj['content']['images'][0]['originalHeight'];
+		$imgw = $obj['content']['images'][0]['originalWidth'];		
+		$title = $obj['content']['title'];
+		$content_id = $obj['content']['uuid'];
+		$summary = $obj['content']['summary'];
+		$published_at = $obj['publishedAt'];
+		$topic = $obj['topics'][0]['name'];
+		$provider = $obj['content']['provider']['name'];
+		$comments_count = $obj['comments']['count'];
+		$content_url = $obj['content']['url'];
+		$content_published_at = $obj['content']['publishedAt'];
+		$content_type = $obj['content']['type'];
+		$content_aspect = $obj['content']['aspectRatio'];
+
+		// go through all the saved posts and see if this post already exists - this will dedupe if needed
+		$already_exists = false;
+		for($j = 0; false && $j < count($posts); $j++)	{
+			if(
+				$posts[$j]['post_id'] == $post_id ||
+				$posts[$j]['title'] == $title || 
+				$posts[$j]['content_id'] == $content_id
+			)	{
+				// already seen this one
+				$already_exists = true;
+				fwrite($logp, 'dupe found: ' . $posts[$j]['post_id'] . "\n");
+			}
+		}
+
+		if(
+			!$already_exists
+			&& $lead_attribution == 'provider'
+		)	{
+			// add it to the front of the list!
+			array_push($posts, array(
+				'post_id' => $post_id,
+				'post_url' => $post_url,
+				'author' => $author,
+				'provider' => $provider,
+				'lead_attribution' => $lead_attribution,
+				'link' => $link,
+				'imgresolutions' => $resolutions,
+				'img' => $img,
+				'imgw' => $imgw,
+				'imgh' => $imgh,
+				'title' => $title,
+				'summary' => $summary,
+				'published_at' => $published_at,
+				'content_id' => $content_id,
+				'content_url' => $content_url,
+				'content_published_at' => $content_published_at,
+				'content_time' => $content_published_at,
+				'content_relative_time' => floor((time() - $content_published_at) / 3600),
+				'reaction_count' => $comments_count,
+				'vibe_name' => $vibe_name,
+				'vibe_id' => $vibe_id,
+				'content_type' => $content_type,
+				'aspect' => $content_aspect
+			));
+		}
+		else {
+			// fwrite($logp, 'found an old post (or a ugc post): ' . "\n");
+			// fwrite($logp, $title . "\n");
+		}
+	}
+
+	// ok if we got here things went ok. trim the post list:
+	$posts = array_slice($posts, 0, $NUM_POSTS_TO_KEEP_PER_VIBE);
+
+	return $posts;
+}
+
+// for a given context, gets the messages; as written only works for article uuids and yahoo-content (not vibe canvass namespace)
+function get_context_comments($message_context) {
+	global $COMMENTS_PER_POST;
+	if(!isset($COMMENTS_PER_POST)) {
+		$COMMENTS_PER_POST = 5;
+	}
+
+	// canvass request
+	$canvass_request_url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/' . $message_context . '/messages?count=' . $COMMENTS_PER_POST . '&sortBy=popular&region=US&lang=en-US&rankingProfile=canvassHalfLifeDecayProfile&userActivity=true';
+	// fwrite($logp, $canvass_request_url . "\n");
+	$canvass_response = file_get_contents($canvass_request_url);
+	$canvass_response_object = json_decode($canvass_response, true);
+	$messages = $canvass_response_object['canvassMessages'];
+
+	return $messages;
+}
+
+// takes the raw canvass json and transforms it into our msg things
+function create_msg_from_canvass_response($message, $postcontext)	{
+	global $WHITELIST_COMMENTER_GUIDS;
+
+	$message_text = $message['details']['userText'];
+	$message_id = $message['messageId'];
+	$message_upvotes = $message['reactionStats']['upVoteCount'];
+	$message_downvotes = $message['reactionStats']['downVoteCount'];
+	$message_reports = $message['reactionStats']['abuseVoteCount'];
+	$message_replies = $message['reactionStats']['replyCount'];
+	$message_author_name = $message['meta']['author']['nickname'];
+	$message_author_img = $message['meta']['author']['image']['url'];
+	$message_author_guid = $message['meta']['author']['guid'];
+	$message_context_id = $message['contextId'];
+	$message_context_meta = json_decode(json_encode($postcontext), true);
+	$message_created_at = $message['meta']['createdAt'];
+	$score = reddit_score($message_upvotes, $message_downvotes, $message_reports);
+
+	$msg = array(
+		'text' => $message_text,
+		'message_id' => $message_id,
+		'context_id' => $message_context_id,
+		'upvotes' => $message_upvotes,
+		'downvotes' => $message_downvotes,
+		'reports' => $message_reports,
+		'replies' => $message_replies,
+		'author_name' => $message_author_name,
+		'author_img' => $message_author_img,
+		'author_guid' => $message_author_guid,
+		'score' => $score,
+		'context_meta' => $message_context_meta,
+		'created_at' => $message_created_at,
+		'comment_time' => $message_created_at,
+		'comment_relative_time' => floor((time() - $message_created_at) / 3600),
+		'bot' => false,
+		'whitelisted_commenter' => isset($WHITELIST_COMMENTER_GUIDS[$message_author_guid])
+	);
+
+	return $msg;		
+}
+
+// get all the whitelisted comments; returns a map of [context] => [msg object]
+function get_whitelisted_comments() {
+	global $WHITELIST_COMMENTER_GUIDS;
+	$whitelisted_message_id_map = array();
+
+	foreach($WHITELIST_COMMENTER_GUIDS as $guid => $val)	{
+		// go get the messages that this user has ever posted
+		$messages = get_user_message_history($guid);
+
+		for($i = 0; $i < count($messages); $i++)	{
+			$whitelisted_message_id_map[$messages[$i]['context_id']] = $messages[$i];
+		}
+	}
+
+	return $whitelisted_message_id_map;
+}
 ?>
