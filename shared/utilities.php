@@ -139,7 +139,10 @@ function curl_canvass_replies($context_id, $message_id)	{
 
 // function that gets all messages for a given user
 function get_user_message_history($guid)	{
-	$url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/users/' . $guid . '/messages?region=US&lang=en-US&count=30';
+	$url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/users/' . $guid . '/messages?region=US&lang=en-US&count=30&sortBy=createdAt';
+	// for asad: FI3SFWX5YUMNC57AOOIW2UTAC4 - http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/users/FI3SFWX5YUMNC57AOOIW2UTAC4/messages?region=US&lang=en-US&count=30&sortBy=createdAt
+	// for asad, but no namespace restriction: http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/users/FI3SFWX5YUMNC57AOOIW2UTAC4/messages?count=10&sortBy=createdAt&region=US&lang=en-US
+	
 	$response = file_get_contents($url);
 	$response_object = json_decode($response, true);
 	$messages = $response_object['canvassMessages'];
@@ -147,7 +150,8 @@ function get_user_message_history($guid)	{
 	$msgs = array();
 	for($j = 0; $j < count($messages); $j++) {
 		$message_text = $messages[$j]['details']['userText'];
-		$message_id = $messages[$j]['messageId'];
+		$message_id = $messages[$j]['messageId']; // when reply id is not null, this is the id of the message that is being replied to
+		$message_reply_id = $messages[$j]['replyId']; // weirdly this is the id of the newly created reply
 		$message_upvotes = $messages[$j]['reactionStats']['upVoteCount'];
 		$message_downvotes = $messages[$j]['reactionStats']['downVoteCount'];
 		$message_reports = $messages[$j]['reactionStats']['abuseVoteCount'];
@@ -164,6 +168,7 @@ function get_user_message_history($guid)	{
 		$msg = array(
 			'text' => $message_text,
 			'message_id' => $message_id,
+			'message_reply_id' => $message_reply_id,
 			'context_id' => $message_context_id,
 			'upvotes' => $message_upvotes,
 			'downvotes' => $message_downvotes,
@@ -445,6 +450,17 @@ function create_msg_from_canvass_response($message, $postcontext)	{
 	return $msg;		
 }
 
+// given a context id and a message id, goes and gets the message meta
+function get_message_from_message_and_context_ids($message_id, $context_id) {
+	$url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/contexts/' . $context_id . '/messages/' . $message_id . '?region=US&lang=en-US';
+
+	$response = file_get_contents($url);
+	$response_object = json_decode($response, true);
+	$message_meta = $response_object['canvassMessage'];
+
+	return create_msg_from_canvass_response($message_meta, array());
+}
+
 // get all the whitelisted comments; returns a map of [context] => [msg object]
 function get_whitelisted_comments() {
 	global $WHITELIST_COMMENTER_GUIDS;
@@ -454,8 +470,26 @@ function get_whitelisted_comments() {
 		// go get the messages that this user has ever posted
 		$messages = get_user_message_history($guid);
 
+		// add them to our list
 		for($i = 0; $i < count($messages); $i++)	{
-			$whitelisted_message_id_map[$messages[$i]['context_id']] = $messages[$i];
+			// if this is asad's comments, we'll add the replied-to comment as a whitelisted one, instead of the comment itself (if it's a reply)
+			if(
+				// check if asad's
+				$guid == 'FI3SFWX5YUMNC57AOOIW2UTAC4'
+				// and check if it's a reply
+				&& strlen($messages[$i]['message_reply_id']) == 36
+			)	{
+				// ok so now we know this was a reply to message id $messages[$i]['message_id'] in $messages[$i]['context_id']. go get the message meta:
+				$message_meta = get_message_from_message_and_context_ids($messages[$i]['message_id'], $messages[$i]['context_id']);
+				// add the retrieved parent message to our list
+				$whitelisted_message_id_map[$messages[$i]['context_id']] = $message_meta;
+
+				
+			}
+			else {
+				// it's just a comment by a whitelisted user
+				$whitelisted_message_id_map[$messages[$i]['context_id']] = $messages[$i];
+			}
 		}
 	}
 

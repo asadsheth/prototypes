@@ -24,7 +24,7 @@ $DEBUG = false;
 $ADDITIONAL_VIBE_PAGES = 0;
 $REPLY_FETCH_QUALITY_THRESHOLD = 0.99;
 $REPLY_FETCH_COUNT_THRESHOLD = 100;
-$COMMENTS_PER_POST = 5;
+$COMMENTS_PER_POST = 0;
 $WHITELIST_COMMENTER_GUIDS = array(
 	'FI3SFWX5YUMNC57AOOIW2UTAC4' => 1, // asad
 	'6NOU2PIONBDXJJKHMGGFXT4ZNE' => 1, // rafi
@@ -96,9 +96,12 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 		// fwrite($logp, $vibe_name . ': working on comment requests for post #' . $i . ' - ' . $posts[$i]['title'] . "\n");
 
 		// call the function to get comments for this context
-		// $messages_for_this_post = get_context_comments($posts[$i]['content_id']);
-		// ^^ ORRRR artificially suppress comments; only whitelisted comments will end up showing up here
-		$messages = array();
+		if($COMMENTS_PER_POST > 0) {
+			$messages_for_this_post = get_context_comments($posts[$i]['content_id']);
+		}
+		else {
+			$messages_for_this_post = array();
+		}
 
 		// go through all them message and see if we got any
 		$found_message = false;
@@ -435,6 +438,7 @@ file_put_contents($CACHE_DIR . "c_allvibes.json", json_encode($every_single_comm
 // write out a superset of all vibes for a full home stream
 fwrite($logp, '======= starting amalgamation' . "\n");
 $amalgam = array();
+$whitelisted_messages = get_whitelisted_comments();
 for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	// shortcuts
 	$vibe_id = $ALL_VIBES[$ind]['id'];
@@ -447,9 +451,7 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	$vibe_postscomments = json_decode(file_get_contents($CACHE_DIR . "c_$vibe_id.json"), true);
 
 	// filter postscomments for this vibe for rules, e.g. whitelists
-	$whitelisted_messages = get_whitelisted_comments();
 	for($i = 0; $i < count($vibe_postscomments); $i++) {
-
 		// this first if statement checks if any of our whitelisted commenters have posted on this story
 		if(isset($whitelisted_messages[$vibe_postscomments[$i]['context_id']])) {
 			// replace this in the current list with the whitelisted one
@@ -467,7 +469,7 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 				'upvotes'
 			);
 
-			// copy the keys over
+			// copy the keys over - we're doing this because we don't have the post metadata i guess?
 			for($j = 0; $j < count($keys_to_copy); $j++)	{
 				$vibe_postscomments[$i][$keys_to_copy[$j]] = $whitelisted_messages[$vibe_postscomments[$i]['context_id']][$keys_to_copy[$j]];
 			}
@@ -483,7 +485,9 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 				'carbonarofx',
 				'dope-o-mine'
 			);
+			// check if it's asad first
 			if($vibe_postscomments[$i]['author_guid'] == 'FI3SFWX5YUMNC57AOOIW2UTAC4') {
+				// it is! hack a random name together
 				$vibe_postscomments[$i]['author_name'] = $random_commenter_names[array_rand($random_commenter_names)];
 			}
 			
@@ -527,7 +531,12 @@ for($i = 0; $i < count($amalgam); $i++)	{
 		if(strstr($i_vibe_id, '@')) {
 			$amalgam[$i]['type'] = $i_vibe_id;
 		}
-		else {
+		
+		// reorder everything except the ntk video and breaking news
+		if(
+			$i_vibe_id != '@NTKVIDEO'
+			&& $i_vibe_id != '@BREAKING'
+		) {
 			$amalgam[$i]['type'] = 'VIBE';
 			$j_vibe_posts = $amalgam[$j]['posts'];
 
@@ -552,6 +561,14 @@ for($i = 0; $i < count($amalgam); $i++)	{
 	}	
 }
 
+// add breaking news;
+// TODO make this conditional
+array_unshift($amalgam, array(
+	'type' => 'BREAKING',
+	'id' => '@BREAKING',
+	'heading' => 'Breaking News',
+	'msg' => 'Guys, the sky is literally on fire right now!'
+));
 // add suggested vibes
 // $sugg_vibes = get_suggested_vibes();
 // write it out

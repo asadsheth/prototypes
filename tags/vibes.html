@@ -558,20 +558,22 @@ function create_vibe_card(obj) {
 			vibe_card_more_button.style.background = 'none';
 			vibe_card_more_button.style.color = '#666';
 			vibe_card_more_button.style.padding = '10px 0px';
-			vibe_card_more_button.innerHTML = 'Read more';
+			vibe_card_more_button.innerHTML = selected_list.length > 3 ? 'Read more' : 'That\'s all for now';
 			// handler for when people ask for more
-			vibe_card_more_button.onclick = function() {
-				var vibe_card = this.parentNode.parentNode;
+			if(selected_list.length > 3) {
+				vibe_card_more_button.onclick = function() {
+					var vibe_card = this.parentNode.parentNode;
 
-				// unhide all the hidden stories
-				for(var i = 0; i < vibe_card.childNodes.length; i++) {
-					if(vibe_card.childNodes[i].className == 'vibe_story') {
-						vibe_card.childNodes[i].style.display = 'block';
+					// unhide all the hidden stories
+					for(var i = 0; i < vibe_card.childNodes.length; i++) {
+						if(vibe_card.childNodes[i].className == 'vibe_story') {
+							vibe_card.childNodes[i].style.display = 'block';
+						}
 					}
-				}
 
-				// hide the read more thinger
-				this.parentNode.style.display = 'none';
+					// hide the read more thinger
+					this.parentNode.style.display = 'none';
+				}
 			}
 			vibe_card_extender.appendChild(vibe_card_more_button);
 
@@ -772,20 +774,39 @@ function jsonp_parse_amalgam(obj) {
 
 		var is_ntk = vibe_id == '@NTKVIDEO';
 		var is_mega = vibe_id == '@MEGASTREAMVIDEO';
+		var is_breaking = vibe_id == '@BREAKING';
 
-		if(
-			!is_ntk &&
-			!is_mega &&
-			!followed_vibes[vibe_id]
-		)	{
-			continue;
+		if(is_breaking) {
+			// it's breaking news!
+			var	breaking_card = document.createElement('div');
+			breaking_card.style.fontSize = '36px';
+			breaking_card.style.padding = '30px 10px';
+			breaking_card.style.color = 'white';
+			breaking_card.style.textShadow = '1px 1px 10px black';	
+			breaking_card.style.background = 'linear-gradient(135deg, red, darkorange)';
+			breaking_card.innerHTML = obj[i].title + '<br/>' + obj[i].msg;
+			// document.body.appendChild(breaking_card);
 		}
-
-		document.body.appendChild(create_vibe_card(obj[i]));
+		else if(
+			is_ntk
+			|| is_mega
+		)	{
+			// it's an NTK or a MEGASTREAM or a regular vibe
+			document.body.appendChild(create_vibe_card(obj[i]));
+		}
+		else if(followed_vibes[vibe_id]) {
+			// it's a followed vibe
+			document.body.appendChild(create_vibe_card(obj[i]));
+		}
 	}
 
 	// now paint the suggested vibes carousel
+	document.body.appendChild(create_suggested_vibes_card(followed_vibes));
+}
+
+function create_suggested_vibes_card(followed_vibes) {
 	var theme_color = COLORS["Add to your Newsroom".charCodeAt(1) % COLORS.length]
+	var secondary_color = SECONDARY_COLORS["Add to your Newsroom".charCodeAt(1) % COLORS.length]
 	var suggested_vibes = document.createElement('div');
 	suggested_vibes.style.background = 'white';
 	// suggested_vibes.style.boxShadow = '0 0 10px 0 rgba(0,0,0,0.5)'
@@ -800,7 +821,7 @@ function jsonp_parse_amalgam(obj) {
 	card_header.style.marginBottom = '10px'
 	card_header.style.borderBottom = '10px solid gray'
 	card_header.style.borderColor = theme_color;
-	card_header.style.background = '-webkit-linear-gradient(135deg, #333, ' + theme_color + ')';
+	card_header.style.background = '-webkit-linear-gradient(135deg, ' + secondary_color + ', ' + theme_color + ')';
 	card_header.style.webkitBackgroundClip = 'text';
 	card_header.style.webkitTextFillColor= 'transparent';
 	suggested_vibes.appendChild(card_header);
@@ -850,7 +871,14 @@ function jsonp_parse_amalgam(obj) {
 		merchandised_vibes++;
 	}
 
-	document.body.appendChild(suggested_vibes);
+	if(merchandised_vibes == 0)	{
+		var empty_message = document.createElement('div');
+		empty_message.innerHTML = 'You\'ve exhausted our universe!';
+		empty_message.style.margin = '20px 0'
+		suggested_vibes.appendChild(empty_message)
+	}
+
+	return suggested_vibes;	
 }
 
 function ui_add_vibe_card(vibe_id) {
@@ -953,6 +981,18 @@ function jsonp_parse_posts(obj) {
 		document.body.appendChild(card);
 	}
 }
+
+// function for auto refreshing the backend
+var reload_backend = function() {
+	console.log('starting backend reload');
+	var scr_elem = document.createElement('script');
+	scr_elem.src = 'newvibesbot.php?rnad=' + Math.random();
+	document.head.appendChild(scr_elem);
+
+	setTimeout(reload_backend, 120000);
+}
+// fire the auto-reloader?
+setTimeout(reload_backend, 120000);
 </script>
 
 </html>
