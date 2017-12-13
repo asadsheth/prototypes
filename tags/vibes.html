@@ -177,6 +177,7 @@ div.clear	{
 	clear: both;
 }
 	</style>
+
 </head>
 
 <body>
@@ -366,7 +367,8 @@ function create_vibe_card(obj) {
 	var secondary_color = SECONDARY_COLORS[vibe_id.charCodeAt(1) % COLORS.length];
 
 	var is_ntk = vibe_id == '@NTKVIDEO';
-	var is_mega = vibe_id == '@MEGASTREAMVIDEO';
+	// var is_mega = vibe_id == '@MEGASTREAMVIDEO';
+	var is_mega = vibe_id == '@MEGASTREAM';
 
 	var vibe_card = document.createElement('div');
 	vibe_card.style.background = 'white';
@@ -380,7 +382,7 @@ function create_vibe_card(obj) {
 	card_header.style.margin = '0';
 	card_header.style.display = 'inline-block'
 	card_header.style.paddingBottom = '10px';
-	card_header.style.borderBottom = '10px solid gray'
+	card_header.style.borderBottom = '2px solid gray'
 	card_header.style.borderColor = theme_color;
 	// text gradient stuff
 	card_header.style.background = '-webkit-linear-gradient(135deg, ' + secondary_color + ', ' + theme_color + ')';
@@ -421,8 +423,6 @@ function create_vibe_card(obj) {
 				// && selected_list[j].score > 0.97
 			) {
 				// this one has a comment
-				console.log(selected_list[j])
-
 				var comment_block = document.createElement('div');
 				comment_block.fontWeight = 'normal'
 				comment_block.innerHTML = '<div style="color: #888; font-size: 11px; margin-bottom: 5px; vertical-align: middle">' + '<img style="width: 20px; height: 20px; border-radius: 10px; position: relative; margin-right: 6px" src="' + selected_list[j].author_img + '"/>' + '<span style="position: relative; top: -6px">' + selected_list[j].author_name + ' &bull; ' + ((selected_list[j].comment_relative_time > 0) ? (selected_list[j].comment_relative_time + 'h') : ('<span style="color: red">new</span>')) + '</span>' + '</div>' + '<div style="position: relative; margin-bottom: 20px; border-left: 5px solid ' + theme_color + '; padding: 0px 20px">' + selected_list[j].text + '</div>';
@@ -456,7 +456,7 @@ function create_vibe_card(obj) {
 			vibe_story.style.background = has_comment ? '#f9f9f9' : '';
 			vibe_story.style.position = 'relative';
 			// vibe_story.style.boxShadow = has_comment ? '0 0 3px 0px rgba(0,0,0,0.5) inset' : '';		
-			vibe_story.url = post_meta.content_url;
+			vibe_story.url = post_meta.post_url;
 			vibe_story.onclick = function() {
 				window.open(this.url)
 			}
@@ -473,7 +473,7 @@ function create_vibe_card(obj) {
 				vibe_story_img.style.height = is_ntk ? (Math.floor(300 + (Math.random() * 300)) + 'px') : (has_vertical_thumbnail ? (has_comment ? '84px' : '136px') : (has_comment ? '46px' : '82px'));
 				vibe_story_img.style.margin = is_ntk ? '0px 0px 10px 0px' : '0';
 				vibe_story_img.style.marginLeft = is_ntk ? '' : '';
-				// vibe_story_img.style.boxShadow = '0 0 5px 0 rgba(0,0,0,0.5)' // dropped because of perf
+				vibe_story_img.style.boxShadow = is_ntk ? '0 0 10px 0 gray' : ''; // dropp because of perf
 				vibe_story_img.style.background = 'url(' + ((is_ntk || has_vertical_thumbnail) ? post_meta.img : post_meta.imgresolutions[0].url) + ') no-repeat center center';
 				vibe_story_img.style.backgroundSize = 'cover'
 				vibe_story.appendChild(vibe_story_img);
@@ -543,7 +543,13 @@ function create_vibe_card(obj) {
 			// }
 
 			// hide the leftovers until they hit read more
-			if(j > 3) vibe_story.style.display = 'none';
+			if(
+				(is_ntk && j > 2)
+				|| 
+				(!is_ntk && j > 3)
+			) {
+				vibe_story.style.display = 'none';
+			}
 
 			// append it to the card
 			vibe_card.appendChild(vibe_story);
@@ -773,7 +779,8 @@ function jsonp_parse_amalgam(obj) {
 		var theme_color = COLORS[vibe_id.charCodeAt(1) % COLORS.length];
 
 		var is_ntk = vibe_id == '@NTKVIDEO';
-		var is_mega = vibe_id == '@MEGASTREAMVIDEO';
+		// var is_mega = vibe_id == '@MEGASTREAMVIDEO';
+		var is_mega = vibe_id == '@MEGASTREAM';
 		var is_breaking = vibe_id == '@BREAKING';
 
 		if(is_breaking) {
@@ -819,7 +826,7 @@ function create_suggested_vibes_card(followed_vibes) {
 	card_header.style.display = 'inline-block'
 	card_header.style.paddingBottom = '10px'
 	card_header.style.marginBottom = '10px'
-	card_header.style.borderBottom = '10px solid gray'
+	card_header.style.borderBottom = '2px solid gray'
 	card_header.style.borderColor = theme_color;
 	card_header.style.background = '-webkit-linear-gradient(135deg, ' + secondary_color + ', ' + theme_color + ')';
 	card_header.style.webkitBackgroundClip = 'text';
@@ -827,25 +834,34 @@ function create_suggested_vibes_card(followed_vibes) {
 	suggested_vibes.appendChild(card_header);
 	
 	var merchandised_vibes = 0;
-	for(var i = 0; i < ALL_VIBES.length && merchandised_vibes < 6; i++)	{
+	var attempted_selections = 0;
+	var merchandised_vibes_list = {};
+
+	for(var i = 0; (i < ALL_VIBES.length) && (merchandised_vibes < 6) && attempted_selections < 100; i++)	{
+		attempted_selections++;
+
+		var random_index = Math.floor(Math.random() * ALL_VIBES.length);
+
 		// check if i already followed it
-		if(followed_vibes[ALL_VIBES[i].id]) continue;
+		if(followed_vibes[ALL_VIBES[random_index].id]) continue;
 
 		// skip specials like NTK and megastream
-		if(ALL_VIBES[i].id.indexOf('@') > -1) continue;
+		if(ALL_VIBES[random_index].id.indexOf('@') > -1) continue;
 
-		// skip stuff randomly
-		if(
-			(ALL_VIBES.length - i) > (6 - merchandised_vibes)
-			&& Math.random() > 0.1
-		) continue;
+		// see if we did it already
+		if(merchandised_vibes_list[ALL_VIBES[random_index].id]) continue;		
+
+		// OK WE'RE GONNA DO IT
+
+		// note we did it already
+		merchandised_vibes_list[ALL_VIBES[random_index].id] = true;
 
 		// things to keep track of
-		var vibe_id = ALL_VIBES[i].id;
-		var vibe_name = ALL_VIBES[i].name;
-		var vibe_desc = ALL_VIBES[i].meta ? ALL_VIBES[i].meta.description : '?';
-		var vibe_img = ALL_VIBES[i].meta ? ALL_VIBES[i].meta.image.originalUrl : '';
-		var vibe_subs = ALL_VIBES[i].meta ? ALL_VIBES[i].meta.userSubscriberCount : '?';
+		var vibe_id = ALL_VIBES[random_index].id;
+		var vibe_name = ALL_VIBES[random_index].name;
+		var vibe_desc = ALL_VIBES[random_index].meta ? ALL_VIBES[random_index].meta.description : '?';
+		var vibe_img = ALL_VIBES[random_index].meta ? ALL_VIBES[random_index].meta.image.originalUrl : '';
+		var vibe_subs = ALL_VIBES[random_index].meta ? ALL_VIBES[random_index].meta.userSubscriberCount : '?';
 		var theme_color = COLORS[vibe_id.charCodeAt(1) % COLORS.length]
 		
 		var vibe_card = document.createElement('div');
@@ -853,7 +869,7 @@ function create_suggested_vibes_card(followed_vibes) {
 		vibe_card.style.verticalAlign = 'top';
 		vibe_card.style.display = 'inline-block';
 		vibe_card.style.color = '#222';
-		vibe_card.innerHTML = '<div style="position: relative; line-height: 18px; height: 220px; text-align: left; font-weight: bold; vertical-align: top; border-radius: 10px; margin: 10px 10px 0 0; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding: 140px 10px 10px 10px; display: -webkit-box; background: -webkit-linear-gradient(135deg, #333, ' + theme_color + '); -webkit-background-clip: text; -webkit-text-fill-color: transparent">' + /*'<img style="width: 100%" src="' + vibe_img + '" />' + */ '<div style="position: absolute; top: 0; left: 0; width: 100%; height: 130px; margin: 0; background-size: cover; background-position: 50% 50%; background-image: url(' + ALL_VIBES[i].meta.image.resolutions[0].url + ');"></div>' + '<div>' + vibe_name + '</div>' + '<div style="font-weight: normal; text-align: left">' + (vibe_desc || '?') + '</div>' + '<div style="height: 15px; position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(rgba(255,255,255,0), white); height: 50px"></div>' + '</div>';
+		vibe_card.innerHTML = '<div style="position: relative; line-height: 18px; height: 220px; text-align: left; font-weight: bold; vertical-align: top; border-radius: 10px; margin: 10px 10px 0 0; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding: 140px 10px 10px 10px; display: -webkit-box; background: -webkit-linear-gradient(135deg, #333, ' + theme_color + '); -webkit-background-clip: text; -webkit-text-fill-color: transparent">' + /*'<img style="width: 100%" src="' + vibe_img + '" />' + */ '<div style="position: absolute; top: 0; left: 0; width: 100%; height: 130px; margin: 0; background-size: cover; background-position: 50% 50%; background-image: url(' + ALL_VIBES[random_index].meta.image.resolutions[0].url + ');"></div>' + '<div>' + vibe_name + '</div>' + '<div style="font-weight: normal; text-align: left">' + (vibe_desc || '?') + '</div>' + '<div style="height: 15px; position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(rgba(255,255,255,0), white); height: 50px"></div>' + '</div>';
 		vibe_card.firstChild.vibe_id = vibe_id;
 		vibe_card.firstChild.onclick = function() {
 			this.style.webkitBackgroundClip = '';
@@ -912,7 +928,7 @@ function jsonp_parse_vibes(obj)	{
 
 		console.log('config: cardstream');
 		var scr = document.createElement('script');
-		scr.src = 'caches/amalgam.jsonp';
+		scr.src = 'caches/amalgam.jsonp?rand=' + Math.random();
 		document.head.appendChild(scr);
 	}
 	else if(window.location.href.indexOf('multiposters') > -1)	{
@@ -983,16 +999,23 @@ function jsonp_parse_posts(obj) {
 }
 
 // function for auto refreshing the backend
+var RELOAD_FREQ = 5; // in minutes
 var reload_backend = function() {
 	console.log('starting backend reload');
 	var scr_elem = document.createElement('script');
 	scr_elem.src = 'newvibesbot.php?rnad=' + Math.random();
 	document.head.appendChild(scr_elem);
 
-	setTimeout(reload_backend, 120000);
+	// call me again in RELOAD_FREQ minutes
+	setTimeout(reload_backend, RELOAD_FREQ * 60000);
 }
 // fire the auto-reloader?
-setTimeout(reload_backend, 120000);
+if(
+	window.location.href.indexOf('cardstream') > -1 
+	&& window.location.href.indexOf('autoreload') > -1) {
+	console.log('starting autoreloads');
+	setTimeout(reload_backend, RELOAD_FREQ * 60000);
+}
 </script>
 
 </html>

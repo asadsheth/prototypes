@@ -64,8 +64,8 @@ $ALL_VIBES = array(
 	array( 'name' => 'TV buzz', 'id' => '785942fb-66c8-3270-9bb0-2b282695de68' ),	
 	array( 'name' => 'Movies', 'id' => '46906397-b90f-3125-a26e-b000769d9eb5' ),	
 	array( 'name' => 'Video games', 'id' => 'fd9a1486-f1c9-3189-9a24-eccd23fe6478' ),	
-	array( 'name' => 'Recommended For You', 'id' => '@MEGASTREAMVIDEO' ),
-	// array( 'name' => '@Megastream', 'id' => '@MEGASTREAM' ),
+	// array( 'name' => 'Recommended For You', 'id' => '@MEGASTREAMVIDEO' ),
+	array( 'name' => 'Trending', 'id' => '@MEGASTREAM' ),
 	array( 'name' => 'Top Stories', 'id' => '@NTKVIDEO' )
 );
 

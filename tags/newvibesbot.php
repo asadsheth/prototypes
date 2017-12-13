@@ -10,7 +10,6 @@ set_time_limit(3600);
 ini_set('memory_limit', '512M');
 
 // get our shared service for vibes
-require('../shared/allvibes.php');
 require('../shared/utilities.php');
 
 // logger
@@ -21,26 +20,24 @@ fwrite($logp, '----------------------------' . "\n");
 $CACHE_DIR = './caches/';
 $NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
 $DEBUG = false;
-$ADDITIONAL_VIBE_PAGES = 0;
+$ADDITIONAL_VIBE_PAGES = 1;
+// set this to 0 and the only comments we'll get are whitelisted ones
+$COMMENTS_PER_POST = 0;
+// set these reallllly high and we'll never go search for replies to comments
 $REPLY_FETCH_QUALITY_THRESHOLD = 0.99;
 $REPLY_FETCH_COUNT_THRESHOLD = 100;
-$COMMENTS_PER_POST = 0;
+// comments that these guys create are automatically whitelisted
 $WHITELIST_COMMENTER_GUIDS = array(
 	'FI3SFWX5YUMNC57AOOIW2UTAC4' => 1, // asad
 	'6NOU2PIONBDXJJKHMGGFXT4ZNE' => 1, // rafi
 	'HRMMTS66W6MRK7JA2YM3LKR3DA' => 1, // tenni
 	'ET7XMWF2G3A3FTE3YEYZ2GAM7I' => 1  // cris
 );
+$UPDATE_NEWSROOMISH = false;
 
-if($DEBUG)	{
-	$ALL_VIBES = array(
-		// array( 'name' => '@Megastream', 'id' => '@MEGASTREAM' ),
-		array( 'name' => 'Featured', 'id' => '@NTKVIDEO' ),
-		array( 'name' => 'Recommended For You', 'id' => '@MEGASTREAMVIDEO' ),
-		array( 'name' => '[smartChrono] NBA', 'id' => 'e238b3d0-c6d5-11e5-af54-fa163e2c24a6', 'ranking' => 'smartChrono' ),
-		// array( 'name' => '[legacy] NBA', 'id' => 'e238b3d0-c6d5-11e5-af54-fa163e2c24a6', 'ranking' => 'ranked' )
-	);
-}
+// vibe list - two options here
+$ALL_VIBES = json_decode(file_get_contents($CACHE_DIR . 'all_vibes.json'), true); // get vibes from disk
+// require('../shared/allvibes.php'); // get vibes from scratch; do this periodically to update info
 
 // TODO MOVE THIS OVER TO UTILS AND USE IT
 // go get the list of suggested vibes from our editorial team
@@ -285,13 +282,8 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	// now just rank all of the messages by message score
 	for($i = 0; $i < count($msgs); $i++)	{
 		for($j = $i + 1; $j < count($msgs); $j++)  {			
-			// don't demote whitelisted dudes
-			if($msgs[$i]['whitelisted_commenter']) continue;
-
 			if(
 				$msgs[$i]['score'] < $msgs[$j]['score']
-				// or check if the commenter is whitelisted!
-				|| $msgs[$j]['whitelisted_commenter']
 			)	{
 				$tmp = $msgs[$i];
 				$msgs[$i] = $msgs[$j];
@@ -312,9 +304,6 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	// rank the messages by a weighted score
 	for($i = 0; $i < count($msgs); $i++)	{		
 		for($j = $i + 1; $j < count($msgs); $j++)  {
-			// don't demote whitelisted dudes
-			if($msgs[$i]['whitelisted_commenter']) continue;
-
 			// weight it by comment age?
 			// $weighted_timestamp_i = time_weighted_power($msgs[$i]['comment_relative_time']) + $msgs[$i]['score'];
 			// $weighted_timestamp_j = time_weighted_power($msgs[$j]['comment_relative_time']) + $msgs[$j]['score'];
@@ -325,8 +314,6 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 			
 			if(
 				$weighted_timestamp_i < $weighted_timestamp_j
-				// or check if the latter is one of our blessed commenters! if so move them forward
-				|| $msgs[$j]['whitelisted_commenter']
 			)	{
 				$tmp = $msgs[$i];
 				$msgs[$i] = $msgs[$j];
@@ -351,9 +338,6 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	// resort this thing now on weighted timestamp
 	for($i = 0; $i < count($deduped_msgs); $i++)	{
 		for($j = $i + 1; $j < count($deduped_msgs); $j++)  {
-			// don't demote whitelisted dudes
-			if($deduped_msgs[$i]['whitelisted_commenter']) continue;
-
 			// weight it by comment age and comment score?
 			// $weighted_timestamp_i = time_weighted_power($deduped_msgs[$i]['comment_relative_time']) + $msgs[$i]['score'];
 			// $weighted_timestamp_j = time_weighted_power($deduped_msgs[$j]['comment_relative_time']) + $msgs[$j]['score'];
@@ -368,8 +352,6 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 
 			if(
 				$weighted_timestamp_i < $weighted_timestamp_j
-				// or whitelisted commenter?
-				|| $deduped_msgs[$j]['whitelisted_commenter']
 			)	{
 				$tmp = $deduped_msgs[$i];
 				$deduped_msgs[$i] = $deduped_msgs[$j];
@@ -387,9 +369,6 @@ fwrite($logp, '======= starting to re-sort all comments' . "\n");
 // resort all comments by score
 for($i = 0; $i < count($every_single_comment); $i++)	{
 	for($j = $i + 1; $j < count($every_single_comment); $j++)	{
-		// don't demote whitelisted dudes
-		if($every_single_comment[$i]['whitelisted_commenter']) continue;
-
 		// time weighted score
 		$weighted_timestamp_i = time_weighted_power($every_single_comment[$i]['comment_relative_time']) + $every_single_comment[$i]['score'];
 		$weighted_timestamp_j = time_weighted_power($every_single_comment[$j]['comment_relative_time']) + $every_single_comment[$j]['score'];
@@ -400,7 +379,6 @@ for($i = 0; $i < count($every_single_comment); $i++)	{
 		
 		if(
 			$weighted_timestamp_i < $weighted_timestamp_j
-			|| $every_single_comment[$j]['whitelisted_commenter']
 		)	{
 			$tmp = $every_single_comment[$i];
 			$every_single_comment[$i] = $every_single_comment[$j];
@@ -475,19 +453,20 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 			}
 
 			// hack to introduce diversity in our whitelisted commenters, even though they're all asad ;)
-			$random_commenter_names = array(
-				'aescalus',
-				'brienne',
-				'Snoop247',
-				'OmarFromTheWire',
-				'gettyImagines',
-				'Thumbelina.3',
-				'carbonarofx',
-				'dope-o-mine'
-			);
 			// check if it's asad first
 			if($vibe_postscomments[$i]['author_guid'] == 'FI3SFWX5YUMNC57AOOIW2UTAC4') {
 				// it is! hack a random name together
+				$random_commenter_names = array(
+					'aescalus',
+					'brienne',
+					'Snoop247',
+					'OmarFromTheWire',
+					'gettyImagines',
+					'Thumbelina.3',
+					'carbonarofx',
+					'dope-o-mine'
+				);
+
 				$vibe_postscomments[$i]['author_name'] = $random_commenter_names[array_rand($random_commenter_names)];
 			}
 			
@@ -578,6 +557,13 @@ file_put_contents($CACHE_DIR . "amalgam.json", json_encode($amalgam));
 file_put_contents($CACHE_DIR . "amalgam.jsonp", 'jsonp_parse_amalgam(' . json_encode($amalgam) . ');');
 
 fwrite($logp, '======= done amalgamation' . "\n");
+
+// update the newsroomish git
+if($UPDATE_NEWSROOMISH)	{
+	fwrite($logp, '======= pushing to newsroomish git' . "\n");
+	exec('./newsroomish_updates.sh');
+	fwrite($logp, '======= done pushing to newsroomish git' . "\n");
+}
 
 fwrite($logp, '=================== END' . "\n");
 fclose($logp);

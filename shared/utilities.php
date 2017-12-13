@@ -142,6 +142,8 @@ function get_user_message_history($guid)	{
 	$url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/users/' . $guid . '/messages?region=US&lang=en-US&count=30&sortBy=createdAt';
 	// for asad: FI3SFWX5YUMNC57AOOIW2UTAC4 - http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/users/FI3SFWX5YUMNC57AOOIW2UTAC4/messages?region=US&lang=en-US&count=30&sortBy=createdAt
 	// for asad, but no namespace restriction: http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/users/FI3SFWX5YUMNC57AOOIW2UTAC4/messages?count=10&sortBy=createdAt&region=US&lang=en-US
+	// no namespace restriction: http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/users/FI3SFWX5YUMNC57AOOIW2UTAC4/messages?count=10&sortBy=createdAt&region=US&lang=en-US
+	// $url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/users/' . $guid . '/messages?region=US&lang=en-US&count=30&sortBy=createdAt'; // no namespace restriction
 	
 	$response = file_get_contents($url);
 	$response_object = json_decode($response, true);
