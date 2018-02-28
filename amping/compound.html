@@ -1,0 +1,273 @@
+<html>
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+	<script>
+	var story_data = [];
+	function process_stories(inp) {
+		story_data = inp;
+	}
+	</script>
+	<script src="stories.jsonp"></script>
+	<style>
+		body {
+			margin: 0;
+			font-family: arial;
+		}
+
+		.group_title_block {
+			margin: 10px 0;
+		}
+
+		.story_block	{
+			border: 1px solid black;
+			margin: 10px 0;
+		}
+
+		.story_block .thumb	{
+			width: 80px;
+			height: 80px;
+			margin-right: 10px;
+			background-size: cover;
+			background-position: 50% 50%;
+			float: left;
+		}
+
+		.story_block .site_name {
+			font-size: 10px;
+		}
+
+		.story_block .title {
+			font-size: 20px;
+			line-height: 20px;
+			height: 60px;
+			margin-bottom: 10px;
+		}
+
+		.story_block .desc {
+			font-size: 12px;
+			display: none;
+		}
+		
+		.story_block .discovered {
+			font-size: 8px;
+			/*display: none;*/
+		}
+
+		div.content_exp_block {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: white;
+			/*opacity: 0.5;*/
+		}
+
+		.content_exp_downbar {
+			height: 10vh;
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			width: 100%;
+			background: #eee;
+			box-shadow: 0 0 10px 0 gray;
+			text-align: center;
+			vertical-align: middle;
+		}
+
+		.content_exp_closer {
+			position: fixed;
+			top: 1vh;
+			right: 1vw;
+			width: 30px;
+			height: 30px;
+			border-radius: 15px;
+			line-height: 30px;
+			font-size: 20px;
+			background: #ccc;
+			/*box-shadow: 0 0 10px 0 gray;*/
+			text-align: center;
+			vertical-align: middle;
+		}		
+
+		.content_iframe_block {
+			width: 100%;
+			height: 90vh;
+			border: none;
+		}
+
+		.group_block {
+			margin: 0px 0px 0px 0px;
+			padding: 10px;
+		}
+
+		.bullet_block {
+			margin: 0px 0px 5px 20px;
+		}
+
+		.covered_background {
+			background-size: cover;
+			background-position: 50% 50%;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="timeline"></div>	
+</body>
+
+<script>
+var timeline_container = document.getElementById('timeline');
+
+function add_group_to_timeline_container(confs) {
+	var group_div = document.createElement('div');
+	group_div.className = 'group_block';
+	var str_html = '';
+	if(confs.title) str_html += '<h2 class="group_title_block">' + confs.title + '</h2>';
+	group_div.innerHTML = str_html;
+
+	if(confs.single_image)	{
+		// var image_div = document.createElement('div');
+		// image_div.className = 'image_block';
+		// image_div.style.backgroundImage = "url('" + confs.image + "')";
+		// group_div.appendChild(image_div)
+		group_div.className = 'group_block covered_background'
+		group_div.style.backgroundImage = "url('" + confs.single_image.url + "')";
+		group_div.style.height = confs.single_image.height;
+	}
+
+	if(confs.bullets) {
+		for(var i = 0; i < confs.bullets.length; i++)	{	
+			var bullet_div = document.createElement('div');
+			bullet_div.className = 'bullet_block';
+			bullet_div.innerHTML = '&bull; ' + confs.bullets[i];
+
+			group_div.appendChild(bullet_div)
+		}
+	}
+
+	for(var i = 0; i < confs.story_indexes.length; i++)	{
+		var story_info = story_data[confs.story_indexes[i]];
+
+		var story_div = document.createElement('div');
+		story_div.className = 'story_block'
+		story_div.style.padding = '10px';
+		story_div.style.backgroud = 'gray';
+
+		var str_html = '';
+		str_html += story_info.image ? '<div class="thumb" style="background-image: url(\'' + story_info.image + '\')">' + '</div>' : '';
+		str_html += '<div class="site_name">' + story_info.site_name + '</div>'
+		str_html += '<div class="title">' + story_info.title + '</div>'
+		str_html += '<div class="desc">' + story_info.desc + '</div>'
+		str_html += '<div class="discovered">' + story_info.discovered + '</div>'
+		// str_html += '<iframe class="url" src="' + story_info.url + '">' + story_info.discovered + '</iframe>'
+		story_div.innerHTML = str_html;
+		story_div.content = story_info.url;
+		
+		story_div.onclick = function() {
+			load_iframe(this.content)
+		};
+
+		group_div.appendChild(story_div);
+	}
+
+	document.body.appendChild(group_div);
+}
+
+function load_iframe(content_url) {
+	var content_exp = document.createElement('div');
+	content_exp.id = 'content_overlay'
+	content_exp.className = 'content_exp_block'
+	content_exp.style.position = 'fixed';
+	content_exp.style.height = '100%';
+	content_exp.style.width = '100%';
+	document.body.appendChild(content_exp);
+
+	var content_exp_downbar = document.createElement('div');
+	content_exp_downbar.className = 'content_exp_downbar';
+	content_exp_downbar.innerHTML = 'newsroom actions go here'
+	content_exp.appendChild(content_exp_downbar);
+
+	var content_exp_closer = document.createElement('div');
+	content_exp_closer.className = 'content_exp_closer';
+	content_exp_closer.innerHTML = 'X';
+	content_exp.appendChild(content_exp_closer);
+	content_exp_closer.onclick = function() {
+		document.body.removeChild(document.getElementById('content_overlay'));
+	};
+
+	var content_iframe = document.createElement('iframe');
+	content_iframe.className = 'content_iframe_block';
+	content_iframe.src = content_url;
+	content_exp.appendChild(content_iframe)
+}
+
+add_group_to_timeline_container({
+	story_indexes: [],
+	title: '',
+	bullets: [],
+	single_image : {
+		url : 'https://media.sproutsocial.com/uploads/2017/05/Facebook-Live-for-Business-1.png',
+		height: '500px'
+	}
+});
+
+add_group_to_timeline_container({
+	story_indexes: [],
+	title: 'Tragedy! NC man live streams his own murder',
+	bullets: [
+		'Prentis Robinson was using Facebook Live yesterday walking through a rough part of town',
+		'He was shot by a masked assailant who briefly entered the frame',
+		'The assailant has since turned himself in'
+	]
+});
+
+add_group_to_timeline_container({
+	story_indexes: [16, 15, 9, 8],
+	title: 'FIRST: The original stream',
+	bullets: [
+		'Prentis was walking around near the UNC campus in Wilkes Barre',
+		'He had just reported his phone stolen at a nearby police station'
+	],
+	blurb : ''
+});
+
+add_group_to_timeline_container({
+	story_indexes: [13],
+	title: 'THEN: Details quickly emerged about the victim',
+	blurb : ''
+});
+
+add_group_to_timeline_container({
+	story_indexes: [10],
+	title: 'Soon, the murderer was identified',
+	blurb : '',
+	bullets : [
+		'He was identified by friends of the victim on Facebook',
+		'An APB was put out',
+	]
+});
+
+add_group_to_timeline_container({
+	story_indexes: [3, 12],
+	title: 'Details emerged about the context of the stream',
+	blurb : '',
+	bullets : [
+		'Prentis was a regular in this area',
+		'He had beef with dealers on a regular basis',
+		'He was exposing them'
+	]
+});
+
+add_group_to_timeline_container({
+	story_indexes: [0, 1, 2, 6],
+	title: 'Finally, the noose closed!',
+	blurb : ''
+});
+
+
+// https://media.sproutsocial.com/uploads/2017/05/Facebook-Live-for-Business-1.png
+
+</script>
+
+</html>
