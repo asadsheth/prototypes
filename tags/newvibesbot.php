@@ -17,39 +17,100 @@ $logp = fopen('log.log', 'a');
 fwrite($logp, '----------------------------' . "\n");
 
 // configs
-$CACHE_DIR = './caches/';
-$NUM_POSTS_TO_KEEP_PER_VIBE = 1000;
-$DEBUG = false;
-$ADDITIONAL_VIBE_PAGES = 1;
-// set this to 0 and the only comments we'll get are whitelisted ones
-$COMMENTS_PER_POST = 0;
-// set these reallllly high and we'll never go search for replies to comments
-$REPLY_FETCH_QUALITY_THRESHOLD = 0.99;
-$REPLY_FETCH_COUNT_THRESHOLD = 100;
+$UPDATE_NEWSROOMISH = false; // update yo/newsroomish
+$CACHE_DIR = './caches/'; // where to store jsons
+$NUM_POSTS_TO_KEEP_PER_VIBE = 1000; // is this active?
+$DEBUG = false; 
+$ADDITIONAL_VIBE_PAGES = 5; // how many extra pages to get? roughly 10-15 per page
+$COMMENTS_PER_POST = 0; // set this to 0 and the only comments we'll get are whitelisted ones
+$REPLY_FETCH_QUALITY_THRESHOLD = 0.99; // set these reallllly high and we'll never go search for replies to comments
+$REPLY_FETCH_COUNT_THRESHOLD = 100; // if there are less than this many replies we won't try to get em
 // comments that these guys create are automatically whitelisted
 $WHITELIST_COMMENTER_GUIDS = array(
-	'FI3SFWX5YUMNC57AOOIW2UTAC4' => 1, // asad
-	'6NOU2PIONBDXJJKHMGGFXT4ZNE' => 1, // rafi
-	'HRMMTS66W6MRK7JA2YM3LKR3DA' => 1, // tenni
-	'ET7XMWF2G3A3FTE3YEYZ2GAM7I' => 1  // cris
+	// '6NOU2PIONBDXJJKHMGGFXT4ZNE' => 1, // Rafi Sarussi
+	// 'HRMMTS66W6MRK7JA2YM3LKR3DA' => 1, // Tenni Theurer
+	// 'ET7XMWF2G3A3FTE3YEYZ2GAM7I' => 1,  // Cris Pierry
+	// '5IKLEIEUE3X5RWTWGGUIQTRGBM' => 1, // Rory Brunner
+	// '7NOEXPE67MEI2SW7E4AZ5VEN2Q' => 1, // Matt Romig
+	// 'IQ3XSURBRCUA7KD33TYBJF7VOE' => 1, // Sid Saraf
+	// 'EYIVQRJUGM4DOWSTFI4Z4Q4BUQ' => 1, // Johnny Rosenstein
+	// '5CPX66OQUQPUSHGYFRPSD2MPWM' => 1, // Michelle Barnes
+	// 'NRF5CZODGWRRSCVGB4ONX565FE' => 1, // David Okamoto
+	// 'ACFWLBHSA45FWJLUDWRFLU3QRQ' => 1, // Joel Huerto
+	// 'GONDC2SAZK2OZINYY3HIVELOQ4' => 1, // Andrew Chang
+	// 'CC4BM7JUVBYG3E4LFMLW4HJLJI' => 1, // Caitlin Dickson
+	// '2HG5UI5ZWG3HR5DTK747QH4RRY' => 1, // Lauren Johnston
+	// 'I4LEPHFM42MTUHVWJJ7UP4MRBI' => 1, // Colin Campbell
+	// '7UGHR4U4MLS54KJRFV2DKUSKOY' => 1, // Liz Goodwin
+	// 'BLL4DNCC3CGMBGYUALCLJH2LBM' => 1, // Lisa Belkin
+	// 'KLD7SJ2KP2H3GLZWPWLHE6UV4Y' => 1, // Kelli Grant
+	// 'L57EL34EFQYRX674SQBC4TL6J4' => 1, // Charity Elder 
+	// 'UIMNXFRYBAW7B2NHD4O6UWWN5M' => 1, // Matt Bai
+	// 'NO63KMHEYMAEJY7NIJTGLHAB6U' => 1, // Garance Franke-Ruta
+	// 'BJWZRZK3VQXT75HJUIKBECZ3WE' => 1, // Michael Isikoff
+	// 'RIT3BY2UFCW6KTNNX5CD2FU5OU' => 1, // Hunter Walker
+	// '4AU2B6Z3JMN3BDHGQ4ALD2OFEM' => 1, // Angela Kim
+	// '73HBKCHBG6BS2FMUWAP4H3ARNM' => 1, // Kevin Kaduk
+	// 'LWSA6PRJSGVLHXNC37QRDVIJ6E' => 1, // Jay Busbee 
+	// 'XKTFNULYBR5XDRXQQRCXZJQSEA' => 1, // Mike Oz
+	// 'GUJBKWQC3GTKLG55Q3IOMB4Y3E' => 1, // Dan Devine
+	// 'AUILOSIHF7VOQFHONH5JPFHUZA' => 1, // Jason Klabacha
+	// 'OBE22MVKMGKMEX6W5R2XGTC57A' => 1, // Sean Leahy
+	// '2QISVDZWLZGHHDNGIETG53XY74' => 1, // Sam Cooper
+	// 'O4QWVBLALY2Z4UYU4LHUGNL5AQ' => 1, // John Parker
+	// 'O3CMS4JH2IN4TLCODEB7WD2FWI' => 1, // Nathan Giannini	
+	
+	// EIGENTRUST:
+	'VW45KQSJEVPG7MAINWLC22ZIBI' => 1,
+	'MPELFLOE644Z2ORWDHLD2N7PVY' => 1,
+	'N2OV3CGEEYJE4N4LSHKWYD3YPU' => 1,
+	'HAF7ZMFKZHJ6U265OH5BLNSVYE' => 1,
+	'RBVBCQHUK7RHP3UJMHTVEG3OCQ' => 1,
+	'YIZTFGVWXUWDOEKE7DK54MHSYY' => 1,
+	'IZ3ZWV74RVJRUC4ZFWQGG5C4OE' => 1,
+	'AQMGLSDEK7K76XIFMTB24O73KA' => 1,
+	'JYEZJ6Y5IGLPACBA5E77G6PPLU' => 1,
+	'EIYCZX32DA5QJSLIFANZVJIERE' => 1,
+	'7STZO3DSCAIHNCL73YFK23FDPU' => 1,
+	'WMY4DZ3CCY5CTCEX3UAAW6OK2A' => 1,
+	'TTT7R6S27GBXXXCXJD3SSXCNAY' => 1,
+	'QVHYCZZVVHXSPRYQ6LMWJJRKGA' => 1,
+	'N4HT6L3YZ2BZEWYCTGCDAFIL6M' => 1,
+	'2XBRIH2KTYNGBGWLA6HEFJ7DNM' => 1,
+	'N45BOCFITVOCIGTPVAGOVRNF6Y' => 1,
+	'IOUSRV5UATXWRTEMA4VCRREMYY' => 1,
+	'VODJKID3YRZWZHZHHRJBTKJX3Q' => 1,
+	'JPM2GUOZ3LTHRIXVUB6G7A5X7U' => 1,
+	// ---- 
+
+	// EIGENTRUST V2: 
+	'VW45KQSJEVPG7MAINWLC22ZIBI' => 1,
+	'IZ3ZWV74RVJRUC4ZFWQGG5C4OE' => 1,
+	'XOR6OO5AIO7RWHIGBV4EEDKW6E' => 1,
+	'XLIZK7N5FRFPNYISILP5W3I3MA' => 1,
+	'T545P4IY74HGRU4GTIJJGQGIUU' => 1,
+	'K2C6SQYOD5J7ZMA2QRO3PGLZEA' => 1,
+	'5MPIKLMY5LGNCWPLZW2HWRZ5EM' => 1,
+	'VW5BW3GDKYDTP2TG27JB54MQEU' => 1,
+	'F3B2743NRW5VWACYJVDCSZ4X7Y' => 1,
+	'E7FV6MXLERWLYK6OXUIIVHTBGE' => 1,
+	'EVFHDR4UAMXKEZSGBCXVG5DWJI' => 1,
+	'I2AOGSDFA5YLQWA3NERNIJ4CUY' => 1,
+	'PYPUGSGB7CC6J4IJE4SSZZ4QWY' => 1,
+	'7FTXUROSX72XP6TKLUMOVAB76Y' => 1,
+	'VJDV2ZQVELNWGZ7XQYOVS747M4' => 1,
+	'SNM7RGPG5DFCY7XVSQNAEQ6WPE' => 1,
+	'6RIKQPHT3HKUMKEW4ELJDK4D6M' => 1,
+	'I7J6MUSVYOK3W66H4BBIVAE76A' => 1,
+	'AXCSMSU4S6CSWI6MXOD2KOCF5U' => 1,
+
+	// me	
+	'FI3SFWX5YUMNC57AOOIW2UTAC4' => 1 // Asad Sheth
 );
-$UPDATE_NEWSROOMISH = false;
 
 // vibe list - two options here
-$ALL_VIBES = json_decode(file_get_contents($CACHE_DIR . 'all_vibes.json'), true); // get vibes from disk
-// require('../shared/allvibes.php'); // get vibes from scratch; do this periodically to update info
-
-// TODO MOVE THIS OVER TO UTILS AND USE IT
-// go get the list of suggested vibes from our editorial team
-function get_suggested_vibes() {
-	// featured by editorial?
-	$url = 'http://mobile-homerun-yql.vibe.production.omega.gq1.yahoo.com:4080/api/vibe/v1/featured/topics';
-	$response = file_get_contents($url);
-	$obj = json_decode($response, true);
-	$topics = $obj['topics']['result'];
-
-	return $topics;
-}
+// $ALL_VIBES = json_decode(file_get_contents($CACHE_DIR . 'all_vibes.json'), true); // get vibes from disk
+require('../shared/allvibes.php'); // get vibes from scratch; do this at least periodically to update info
 
 // write the vibe list to disk
 file_put_contents($CACHE_DIR . "all_vibes.json", json_encode($ALL_VIBES));
@@ -416,6 +477,8 @@ file_put_contents($CACHE_DIR . "c_allvibes.json", json_encode($every_single_comm
 // write out a superset of all vibes for a full home stream
 fwrite($logp, '======= starting amalgamation' . "\n");
 $amalgam = array();
+$amalgam_cards = array();
+fwrite($logp, '======= getting whitelisted comments' . "\n");
 $whitelisted_messages = get_whitelisted_comments();
 for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	// shortcuts
@@ -489,7 +552,7 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 	}
 
 	// add this vibe to the full array
-	array_push($amalgam, array(
+	array_push($amalgam_cards, array(
 		'id' => $vibe_id,
 		'name' => $vibe_name,
 		'meta' => $vibe_meta,
@@ -500,41 +563,45 @@ for($ind = 0; $ind < count($ALL_VIBES); $ind++)	{
 }
 
 // re-sort the vibe cards by most recently updated
-for($i = 0; $i < count($amalgam); $i++)	{
-	for($j = $i + 1; $j < count($amalgam); $j++)	{
+for($i = 0; $i < count($amalgam_cards); $i++)	{
+	for($j = $i + 1; $j < count($amalgam_cards); $j++)	{
 		// shortcuts
-		$i_vibe_id = $amalgam[$i]['id'];
-		$i_vibe_name = $amalgam[$i]['name'];
-		$i_vibe_posts = $amalgam[$i]['posts'];
+		$i_vibe_id = $amalgam_cards[$i]['id'];
+		$i_vibe_name = $amalgam_cards[$i]['name'];
+		$i_vibe_posts = $amalgam_cards[$i]['posts'];
 
 		if(strstr($i_vibe_id, '@')) {
-			$amalgam[$i]['type'] = $i_vibe_id;
+			$amalgam_cards[$i]['type'] = $i_vibe_id;
+		}
+		else {
+			$amalgam_cards[$i]['type'] = 'VIBE';
 		}
 		
-		// reorder everything except the ntk video and breaking news
+		// reorder everything except the explicitly selected ones
 		if(
-			$i_vibe_id != '@NTKVIDEO'
-			&& $i_vibe_id != '@BREAKING'
+			true
+			&& $i_vibe_id != '@NTKVIDEO' // this makes sure the NTK is at the top
+			&& $i_vibe_id != '@BREAKING' // this makes sure breaking news is at the top
 		) {
-			$amalgam[$i]['type'] = 'VIBE';
-			$j_vibe_posts = $amalgam[$j]['posts'];
+			$j_vibe_posts = $amalgam_cards[$j]['posts'];
 
+			// find the most recent pubdate in the i vibe
 			$max_i_pub_at = 0;
 			for($k = 0; $k < count($i_vibe_posts); $k++)	{
 				$max_i_pub_at = max($max_i_pub_at, $i_vibe_posts[$k]['content_published_at']);
 			}
 
+			// find the most recent pubdate in the j vibe
 			$max_j_pub_at = 0;
 			for($k = 0; $k < count($j_vibe_posts); $k++)	{
 				$max_j_pub_at = max($max_j_pub_at, $j_vibe_posts[$k]['content_published_at']);
 			}
 
-			// echo $max_i_pub_at . ':' . $max_j_pub_at . "\n";
-
+			// if i is less recent than j, move j ahead of i
 			if($max_i_pub_at < $max_j_pub_at)	{
-				$tmp = $amalgam[$i];
-				$amalgam[$i] = $amalgam[$j];
-				$amalgam[$j] = $tmp;
+				$tmp = $amalgam_cards[$i];
+				$amalgam_cards[$i] = $amalgam_cards[$j];
+				$amalgam_cards[$j] = $tmp;
 			}
 		}
 	}	
@@ -542,15 +609,35 @@ for($i = 0; $i < count($amalgam); $i++)	{
 
 // add breaking news;
 // TODO make this conditional
-array_unshift($amalgam, array(
-	'type' => 'BREAKING',
+array_unshift($amalgam_cards, array(
+	'type' => '@BREAKING',
 	'id' => '@BREAKING',
 	'heading' => 'Breaking News',
-	'msg' => 'Guys, the sky is literally on fire right now!'
+	'msg' => 'Guys, the sky is literally on fire right now!',
+	'postscomments' => null
 ));
 // add suggested vibes
 // $sugg_vibes = get_suggested_vibes();
 // write it out
+
+// build our explore stuff
+$amalgam_explore = array();
+for($i = 0; $i < count($amalgam_cards); $i++)	{
+	$i_vibe_postscomments = $amalgam_cards[$i]['postscomments'];
+
+	for($j = 0; $j < count($i_vibe_postscomments); $j++)	{
+		if($i_vibe_postscomments[$j]['whitelisted_commenter']) {
+			// add this guy to our explore list
+			array_push($amalgam_explore, array(
+				'type' => 'comment',
+				'blob' => $i_vibe_postscomments[$j]
+			));
+		}
+	}
+}
+
+$amalgam['cards'] = $amalgam_cards;
+$amalgam['explore'] = $amalgam_explore;
 
 // write the amalgamation to disk
 file_put_contents($CACHE_DIR . "amalgam.json", json_encode($amalgam));

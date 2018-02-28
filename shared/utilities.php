@@ -28,7 +28,7 @@ function reddit_score($uv, $dv, $reports) {
 }
 
 // given a vibe id, go get the stream for it. handles some special streams too
-function curl_post_stream($vibe_id, $next, $ranking = 'ranked')	{
+function curl_post_stream($vibe_id, $next, $ranking)	{
 	// is it a special vibe?
 	if(strstr($vibe_id, '@')) {
 		if($vibe_id == '@MEGASTREAM')	{
@@ -52,6 +52,8 @@ function curl_post_stream($vibe_id, $next, $ranking = 'ranked')	{
 		if($ranking == 'smartChrono') $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/smartChronoStream?lang=en-US&region=US&enableNewsroomOTT=true';
 		else if($ranking == 'ranked') $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/rankedStream?lang=en-US&region=US&enableNewsroomOTT=true';		
 	}
+
+	// echo $ranking . "\n";
 
 	// looking for a second page?
 	if(isset($next))	{
@@ -138,10 +140,18 @@ function curl_canvass_replies($context_id, $message_id)	{
 }
 
 // function that gets all messages for a given user
-function get_user_message_history($guid)	{
-	$url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/users/' . $guid . '/messages?region=US&lang=en-US&count=30&sortBy=createdAt';
+function get_user_message_history($guid, $namespace_free = false)	{
+	if($namespace_free)	{
+		// for asad, but no namespace restriction: http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/users/FI3SFWX5YUMNC57AOOIW2UTAC4/messages?count=10&sortBy=createdAt&region=US&lang=en-US
+		$url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/users/' . $guid . '/messages?count=50&sortBy=createdAt&region=US&lang=en-US';
+	}
+	else {
+		// yahoo content namespace only
+		$url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/users/' . $guid . '/messages?region=US&lang=en-US&count=30&sortBy=createdAt';
+
+	}
+
 	// for asad: FI3SFWX5YUMNC57AOOIW2UTAC4 - http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/users/FI3SFWX5YUMNC57AOOIW2UTAC4/messages?region=US&lang=en-US&count=30&sortBy=createdAt
-	// for asad, but no namespace restriction: http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/users/FI3SFWX5YUMNC57AOOIW2UTAC4/messages?count=10&sortBy=createdAt&region=US&lang=en-US
 	// no namespace restriction: http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/users/FI3SFWX5YUMNC57AOOIW2UTAC4/messages?count=10&sortBy=createdAt&region=US&lang=en-US
 	// $url = 'http://canvass-yql.media.yahoo.com:4080/api/canvass/debug/v1/ns/yahoo_content/users/' . $guid . '/messages?region=US&lang=en-US&count=30&sortBy=createdAt'; // no namespace restriction
 	
@@ -152,8 +162,9 @@ function get_user_message_history($guid)	{
 	$msgs = array();
 	for($j = 0; $j < count($messages); $j++) {
 		$message_text = $messages[$j]['details']['userText'];
-		$message_id = $messages[$j]['messageId']; // when reply id is not null, this is the id of the message that is being replied to
-		$message_reply_id = $messages[$j]['replyId']; // weirdly this is the id of the newly created reply
+		$message_id = $messages[$j]['messageId']; // when reply id is not null, this is the id of the message that is being replied to. seems really weird. when it is null i guess it's the id of the message itself
+		$message_reply_id = $messages[$j]['replyId']; // when this is not null, weirdly this is the id of the newly created reply
+		// TODO THIS NEEDS SOME THINKING, DID WE BREAK SOMETHING?
 		$message_upvotes = $messages[$j]['reactionStats']['upVoteCount'];
 		$message_downvotes = $messages[$j]['reactionStats']['downVoteCount'];
 		$message_reports = $messages[$j]['reactionStats']['abuseVoteCount'];
@@ -271,7 +282,8 @@ function get_vibe_posts($vibe_obj) {
 
 	$vibe_id = $vibe_obj['id'];
 	$vibe_name = $vibe_obj['name'];
-	$vibe_ranking = isset($vibe_obj['ranking']) ? $vibe_obj['ranking'] : 'smartChrono';
+	$vibe_ranking = isset($vibe_obj['ranking']) ? $vibe_obj['ranking'] : 'smartChrono'; // default to smartChrono
+	// $vibe_ranking = isset($vibe_obj['ranking']) ? $vibe_obj['ranking'] : 'ranked'; // default to ranked
 
 	// get local posts if they exist
 	// (currently disabled - no local post caching)
@@ -310,6 +322,10 @@ function get_vibe_posts($vibe_obj) {
 		$next_token = json_encode($next_obj['meta']['result'][0]);
 	}
 
+	if($vibe_name != 'Top Stories') {
+		// echo json_encode($object); exit;
+	}
+
 	// go through all the posts and pre-parse
 	for($i = 0; $i < count($object['items']['result']); $i++)	{
 		// make it easier to parse
@@ -339,7 +355,7 @@ function get_vibe_posts($vibe_obj) {
 
 		// go through all the saved posts and see if this post already exists - this will dedupe if needed
 		$already_exists = false;
-		for($j = 0; false && $j < count($posts); $j++)	{
+		for($j = 0; $j < count($posts); $j++)	{
 			if(
 				$posts[$j]['post_id'] == $post_id ||
 				$posts[$j]['title'] == $title || 
@@ -472,6 +488,9 @@ function get_whitelisted_comments() {
 		// go get the messages that this user has ever posted
 		$messages = get_user_message_history($guid);
 
+		// debug out the guids and their counts
+		// echo $guid . "\t" . count($messages) . "\n";
+
 		// add them to our list
 		for($i = 0; $i < count($messages); $i++)	{
 			// if this is asad's comments, we'll add the replied-to comment as a whitelisted one, instead of the comment itself (if it's a reply)
@@ -497,4 +516,17 @@ function get_whitelisted_comments() {
 
 	return $whitelisted_message_id_map;
 }
+
+// TODO USE THIS FOR SUGGESTED VIBES
+// go get the list of suggested vibes from our editorial team
+function get_suggested_vibes() {
+	// featured by editorial?
+	$url = 'http://mobile-homerun-yql.vibe.production.omega.gq1.yahoo.com:4080/api/vibe/v1/featured/topics';
+	$response = file_get_contents($url);
+	$obj = json_decode($response, true);
+	$topics = $obj['topics']['result'];
+
+	return $topics;
+}
+
 ?>

@@ -7,8 +7,10 @@
 
 $ALL_VIBES = array(
 	// here: random vibes i like ---------------------
+	/*
 	array( 'name' => 'NBA', 'id' => 'e238b3d0-c6d5-11e5-af54-fa163e2c24a6' ),
 	array( 'name' => 'Finance', 'id' => '338950e1-cae3-359e-bfa3-af403b69d694' ),
+	array( 'name' => 'San Jose', 'id' => 'a4e6cc20-f784-3169-8d99-2e22d369a550' ),
 	array( 'name' => 'Politics', 'id' => 'dbb2094c-7d9a-37c0-96b9-7f844af62e78', 'slackhook' => 'https://hooks.slack.com/services/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' ),
 	array( 'name' => 'United States', 'id' => 'f5504734-2071-32a6-b729-74a9b3141a44' ),
 	array( 'name' => 'Transportation', 'id' => '7fa3e636-f5f1-3e5e-bc73-e15fa8fa8d10' ),
@@ -32,8 +34,10 @@ $ALL_VIBES = array(
 	array( 'name' => 'Health Care Reform', 'id' => 'a0d7935a-b327-11e5-bc1e-fa163e6f4a7e'),
 	array( 'name' => 'Sports', 'id' => '5c839b50-00d3-37e8-a68f-7c03c48d7104', 'slackhook' => 'https://hooks.slack.com/services/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' ),
 	array( 'name' => 'Trump Family', 'id' => '88cfc604-82db-3595-984d-76ff5706bcff'),
+	*/
 
 	// here: video franchises ---------------------
+	/*
 	array( 'name' => 'Dash', 'id' => '2bcb0f23-d4c8-3994-9e0e-c0fdcbd27ddd'),
 	array( 'name' => 'Sound Off', 'id' => '4cd9e46f-e419-3804-b2aa-be5bef3eca88'),
 	array( 'name' => 'Now I Get It', 'id' => '6737015f-a6ba-3a61-88c1-6e993dca285e'),
@@ -50,8 +54,10 @@ $ALL_VIBES = array(
 	array( 'name' => 'Who Will Win', 'id' => '9f6bbdce-890e-35bc-9a60-ab1711552f3c'),
 	array( 'name' => 'iWitness', 'id' => '22c9d124-9882-322a-806d-f39487400856'),
 	array( 'name' => 'Unfiltered', 'id' => '4cbcad96-b3aa-3fe0-8f3a-3498fb29721e'),
+	*/
 
 	// starting here these are data-based - most popular vibes ---------------------
+	/*
 	array( 'name' => 'Wildfires', 'id' => '944d17a2-7cd5-337f-af95-2c7dd5e431f4' ),
 	array( 'name' => 'Entertainment', 'id' => '7563eca7-14c1-3a20-ab16-782788cde33a' ),
 	array( 'name' => 'U.S. News', 'id' => 'ecd5e8af-dc90-3332-9efb-d522bf6b8dfa' ),
@@ -63,8 +69,9 @@ $ALL_VIBES = array(
 	array( 'name' => 'Relationships', 'id' => 'ce737d28-de97-3252-975e-30a192aaa3bb'),
 	array( 'name' => 'TV buzz', 'id' => '785942fb-66c8-3270-9bb0-2b282695de68' ),	
 	array( 'name' => 'Movies', 'id' => '46906397-b90f-3125-a26e-b000769d9eb5' ),	
+	*/
 	array( 'name' => 'Video games', 'id' => 'fd9a1486-f1c9-3189-9a24-eccd23fe6478' ),	
-	// array( 'name' => 'Recommended For You', 'id' => '@MEGASTREAMVIDEO' ),
+	// array( 'name' => 'Trending', 'id' => '@MEGASTREAMVIDEO' ),
 	array( 'name' => 'Trending', 'id' => '@MEGASTREAM' ),
 	array( 'name' => 'Top Stories', 'id' => '@NTKVIDEO' )
 );
