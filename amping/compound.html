@@ -64,7 +64,7 @@
 		}
 
 		.content_exp_downbar {
-			height: 10vh;
+			height: 8vh;
 			position: fixed;
 			bottom: 0;
 			left: 0;
@@ -73,16 +73,19 @@
 			box-shadow: 0 0 10px 0 gray;
 			text-align: center;
 			vertical-align: middle;
+			background-image: url('http://l.yimg.com/cv/api/default/20180227/ssn.png');
+			background-size: cover;
+			background-position: 50% 50%;
 		}
 
 		.content_exp_closer {
 			position: fixed;
 			top: 1vh;
 			right: 1vw;
-			width: 30px;
-			height: 30px;
-			border-radius: 15px;
-			line-height: 30px;
+			width: 40px;
+			height: 40px;
+			border-radius: 25px;
+			line-height: 40px;
 			font-size: 20px;
 			background: #ccc;
 			/*box-shadow: 0 0 10px 0 gray;*/
@@ -92,7 +95,7 @@
 
 		.content_iframe_block {
 			width: 100%;
-			height: 90vh;
+			height: 92vh;
 			border: none;
 		}
 
@@ -103,6 +106,10 @@
 
 		.bullet_block {
 			margin: 0px 0px 5px 20px;
+		}
+
+		.blurb_block {
+			margin: 0px 0px 5px 0px;
 		}
 
 		.covered_background {
@@ -146,6 +153,16 @@ function add_group_to_timeline_container(confs) {
 		}
 	}
 
+	if(confs.blurbs) {
+		for(var i = 0; i < confs.blurbs.length; i++)	{	
+			var blurb_div = document.createElement('div');
+			blurb_div.className = 'blurb_block';
+			blurb_div.innerHTML = confs.blurbs[i];
+
+			group_div.appendChild(blurb_div)
+		}
+	}
+
 	for(var i = 0; i < confs.story_indexes.length; i++)	{
 		var story_info = story_data[confs.story_indexes[i]];
 
@@ -185,22 +202,38 @@ function load_iframe(content_url) {
 
 	var content_exp_downbar = document.createElement('div');
 	content_exp_downbar.className = 'content_exp_downbar';
-	content_exp_downbar.innerHTML = 'newsroom actions go here'
+	// content_exp_downbar.innerHTML = 'newsroom actions go here'
 	content_exp.appendChild(content_exp_downbar);
 
 	var content_exp_closer = document.createElement('div');
 	content_exp_closer.className = 'content_exp_closer';
 	content_exp_closer.innerHTML = 'X';
-	content_exp.appendChild(content_exp_closer);
+	content_exp_closer.onmousedown = function() {
+		this.style.boxShadow = '0 0 20px 0 red';
+	};
+	content_exp_closer.ontouchstart = function() {
+		this.style.boxShadow = '0 0 20px 0 red';
+	};
+	content_exp_closer.onmouseup = function() {
+		this.style.boxShadow = '';
+	};
 	content_exp_closer.onclick = function() {
 		document.body.removeChild(document.getElementById('content_overlay'));
 	};
+	content_exp.appendChild(content_exp_closer);
 
 	var content_iframe = document.createElement('iframe');
 	content_iframe.className = 'content_iframe_block';
 	content_iframe.src = content_url;
 	content_exp.appendChild(content_iframe)
+
+	var related_content = document.createElement('div');
+	related_content.className = 'content_related_content';
+	related_content.innerHTML = 'MORE CONTENT WOULD GO HERE MUHAHAH'
+	content_exp.appendChild(related_content)	
 }
+
+// ADD GRUOPS HERE
 
 add_group_to_timeline_container({
 	story_indexes: [],
@@ -219,7 +252,8 @@ add_group_to_timeline_container({
 		'Prentis Robinson was using Facebook Live yesterday walking through a rough part of town',
 		'He was shot by a masked assailant who briefly entered the frame',
 		'The assailant has since turned himself in'
-	]
+	],
+	blurbs : null
 });
 
 add_group_to_timeline_container({
@@ -229,19 +263,17 @@ add_group_to_timeline_container({
 		'Prentis was walking around near the UNC campus in Wilkes Barre',
 		'He had just reported his phone stolen at a nearby police station'
 	],
-	blurb : ''
+	blurbs : null
 });
 
 add_group_to_timeline_container({
 	story_indexes: [13],
-	title: 'THEN: Details quickly emerged about the victim',
-	blurb : ''
+	title: 'THEN: Details quickly emerged about the victim'
 });
 
 add_group_to_timeline_container({
 	story_indexes: [10],
 	title: 'Soon, the murderer was identified',
-	blurb : '',
 	bullets : [
 		'He was identified by friends of the victim on Facebook',
 		'An APB was put out',
@@ -250,8 +282,7 @@ add_group_to_timeline_container({
 
 add_group_to_timeline_container({
 	story_indexes: [3, 12],
-	title: 'Details emerged about the context of the stream',
-	blurb : '',
+	title: 'More information became available about why he was streaming',
 	bullets : [
 		'Prentis was a regular in this area',
 		'He had beef with dealers on a regular basis',
@@ -262,11 +293,11 @@ add_group_to_timeline_container({
 add_group_to_timeline_container({
 	story_indexes: [0, 1, 2, 6],
 	title: 'Finally, the noose closed!',
-	blurb : ''
+	blurbs : [
+		'The assailant, Douglas Colson, turned himself in. It seems like he just couldn\'t avoid the guilt.',
+		'Now we see what happens next.'
+	]
 });
-
-
-// https://media.sproutsocial.com/uploads/2017/05/Facebook-Live-for-Business-1.png
 
 </script>
 

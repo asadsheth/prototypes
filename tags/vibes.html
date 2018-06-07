@@ -35,7 +35,7 @@
 	box-sizing: border-box;
 }
 html {
-	overflow-x: hidden;
+	/*overflow-x: hidden;*/
 }
 body{
 	color: #222;
@@ -225,12 +225,15 @@ console.log('&autoreload: periodically run newvibesbot.php');
 console.log('&breaking: add a card for breaking news');
 console.log('&useweblinks: link to www articles instead of newsroom posts');
 console.log('&multinav: profile / home / explore');
-console.log('&ntk: use a special ntk template; else it looks the same');
+console.log('&ntk: toggle the special ntk template; else it looks the same');
 console.log('-------------------');
 
+// holder global vars that will be used for stuff inside functions
 var ALL_VIBES = [];
 var AMALGAM = [];
+var THREADLINES = {};
 
+// cfg globals
 var COLORS = [
     'darkred',
     'rebeccapurple',
@@ -264,37 +267,14 @@ var SECONDARY_COLORS = [
     'blue'
 ];
 var CARDSTREAM_SCROLL_THROTTLER = 0;
-var DEFAULT_NUM_STORIES_PER_CARD = 50;
+var DEFAULT_NUM_STORIES_PER_CARD = 4;
+var DEFAULT_NUM_STORIES_PER_NTK = 5;
+var DEFAULT_NUM_MERCHANDISED_VIBES = 8;
+var RELOAD_FREQ = 10; // in minutes
+var DEFAULT_FOLLOWED_VIBES = {'a4e6cc20-f784-3169-8d99-2e22d369a550':1};
 
-document.addEventListener("DOMContentLoaded", function(event) {
-	// asked to clear out storage?
-	if(window.location.href.indexOf('clearlocalstorage') > -1)	{
-		localStorage.clear();
-	}
-
-	// looking at full comment list?
-	if(window.location.href.indexOf('allcomments') > -1)	{
-		document.body.innerHTML = '';
-
-		console.log('fetching allcomments')
-		var scr = document.createElement('script');
-		scr.src = 'caches/c_allvibes.jsonp';
-		document.head.appendChild(scr);
-	}
-	// special prototype for card streams?
-	else if(window.location.href.indexOf('cardstream') > -1) {
-		document.body.innerHTML = '';
-
-		console.log('config: cardstream');
-		var scr = document.createElement('script');
-		scr.src = 'caches/amalgam.jsonp?rand=' + Math.random();
-		document.head.appendChild(scr);
-	}
-	else {
-		// just get the list of vibes we've got, we'll figure out what we're doing after
-		load_vibe_list();
-	}
-});
+// visit history tracker
+var VISIT_HISTORY = JSON.parse(localStorage.getItem('visithistory')) || [];
 
 // this creates a first level user prompt (i.e. the thing that starts the convo?) dom object
 var create_prompt = function(prompt_obj, theme_color) {
@@ -437,14 +417,16 @@ function create_vibe_card(obj) {
 	var theme_color = COLORS[vibe_id.charCodeAt(1) % COLORS.length];
 	var secondary_color = SECONDARY_COLORS[vibe_id.charCodeAt(1) % COLORS.length];
 
-	var is_ntk = vibe_id == '@NTKVIDEO' && (window.location.href.indexOf('ntk') > -1);
+	var is_ntk = vibe_id == '@NTKVIDEO' && (window.location.href.indexOf('ntk') == -1);
 	var is_mega = (vibe_id == '@MEGASTREAMVIDEO') || (vibe_id == '@MEGASTREAM');
 
 	var vibe_card = create_cardstream_card_shell();
+	vibe_card.id = vibe_id;
 	vibe_card.appendChild(create_cardstream_card_header_shell(vibe_name, theme_color, secondary_color));
 
 	if(selected_list.length == 0) {
 		var empty_message = document.createElement('div');
+		empty_message.textAlign = 'center';
 		empty_message.innerHTML = 'Nothing to see here lately.'
 		empty_message.style.margin = '20px 0'
 		vibe_card.appendChild(empty_message)
@@ -514,31 +496,31 @@ function create_vibe_card(obj) {
 				vibe_story_img.className = 'vibe_story_img';
 				vibe_story_img.style.borderRadius = is_ntk ? '10px' : '5px';
 				vibe_story_img.style.width = is_ntk ? '100%' : (has_comment ? '46px' : '82px');
-				vibe_story_img.style.height = is_ntk ? (Math.floor(200 + (Math.random() * 100)) + 'px') : (has_vertical_thumbnail ? (has_comment ? '84px' : '136px') : (has_comment ? '46px' : '82px'));
+				vibe_story_img.style.height = is_ntk ? (Math.floor(180 + (Math.random() * 100)) + 'px') : (has_vertical_thumbnail ? (has_comment ? '84px' : '136px') : (has_comment ? '46px' : '82px'));
 				vibe_story_img.style.margin = is_ntk ? '0px 0px 10px 0px' : '0';
 				vibe_story_img.style.marginLeft = is_ntk ? '' : '';
 				vibe_story_img.style.boxShadow = is_ntk ? '0 0 10px 0 gray' : ''; // dropp because of perf
-				vibe_story_img.style.background = 'url(' + ((is_ntk || has_vertical_thumbnail) ? post_meta.img : post_meta.imgresolutions[0].url) + ') no-repeat center center';
+				vibe_story_img.style.background = 'url(' + ((is_ntk || has_vertical_thumbnail) ? post_meta.img : post_meta.imgresolutions[0].url) + ') no-repeat center 25%';
 				vibe_story_img.style.backgroundSize = 'cover'
-				vibe_story_img.innerHTML = is_ntk ? '<div style="display: inline-block;color: white;width: 100%;vertical-align: top;position: absolute;top: 0px;right: 0px;padding: 0 20px;text-align: right;border-radius: 10px;font-size: 75px;opacity: 0.2">' + (j + 1) + '</div>' : '';
+				vibe_story_img.innerHTML = is_ntk ? '<div style="display: inline-block;color: white;width: 100%;vertical-align: top;position: absolute;top: 0px;right: 0px;padding: 0 20px;text-align: right;border-radius: 10px;font-size: 75px;opacity: 0.5; text-shadow: 0 0 10px #000">' + (j + 1) + '</div>' : '';
 				vibe_story.appendChild(vibe_story_img);
 			}
 					
 			var vibe_story_provider = document.createElement('div');
 			vibe_story_provider.style.display = 'inline-block'
-			vibe_story_provider.style.fontSize = '10px'
-			vibe_story_provider.innerHTML = post_meta.provider;
+			vibe_story_provider.style.fontSize = '12px'
+			vibe_story_provider.innerHTML = post_meta.provider_image ? ('<img style="height: 12px; position: relative; top: 1px" src="' + post_meta.provider_image + '"/>') : post_meta.provider;
 
 			var vibe_story_timestamp = document.createElement('div');
 			vibe_story_timestamp.style.display = 'inline-block'
-			vibe_story_timestamp.style.fontSize = '10px'
+			vibe_story_timestamp.style.fontSize = '12px'
 			vibe_story_timestamp.innerHTML = '&nbsp; &bull; ' + (post_meta.content_relative_time == 0 ? ('<font style="color: red">new</font>') : (post_meta.content_relative_time > 23) ? (Math.floor(post_meta.content_relative_time / 24) + 'd') : (post_meta.content_relative_time + 'h')) + (vibe_story.url.indexOf('yahoo.com') == -1 ? '&nbsp; &bull; &nbsp; &rarr;' : '');
 
 			var vibe_story_title = document.createElement('div');
 			vibe_story_title.style.fontSize = is_ntk ? '30px' : has_vertical_thumbnail ? (has_comment ? '14px' : '24px') : (has_comment ? '13px' : '15px');
 			vibe_story_title.style.fontWeight = is_ntk ? 'bold' : 'normal';
 			vibe_story_title.style.color = is_ntk ? 'white' : (has_comment ? '#444' : '#222');
-			vibe_story_title.style.webkitLineClamp = has_vertical_thumbnail ? '4' : (has_comment ? '2' : '3');
+			vibe_story_title.style.webkitLineClamp = is_ntk ? '3' : (has_vertical_thumbnail ? '4' : (has_comment ? '2' : '3'));
 			vibe_story_title.style.display = '-webkit-box';
 			vibe_story_title.style.overflow = 'hidden';
 			vibe_story_title.style.webkitBoxOrient= 'vertical';
@@ -574,6 +556,9 @@ function create_vibe_card(obj) {
 				vibe_story_meta.style.borderRadius = '10px';
 				vibe_story_img.appendChild(vibe_story_meta);
 
+				var vibe_sourcing = document.createElement('div');
+
+
 			} else {
 				vibe_story_meta.appendChild(vibe_story_provider)
 				vibe_story_meta.appendChild(vibe_story_timestamp)
@@ -589,9 +574,9 @@ function create_vibe_card(obj) {
 
 			// hide the leftovers until they hit read more
 			if(
-				(is_ntk && j > (DEFAULT_NUM_STORIES_PER_CARD -1)) // show 3 items in NTK
+				(is_ntk && j > (DEFAULT_NUM_STORIES_PER_NTK)) // show X items in NTK
 				|| 
-				(!is_ntk && j > (DEFAULT_NUM_STORIES_PER_CARD -1)) // show 3 items in other cards
+				(!is_ntk && j > (DEFAULT_NUM_STORIES_PER_CARD - 1)) // show Y items in other cards
 			) {
 				vibe_story.style.display = 'none';
 			}
@@ -606,7 +591,7 @@ function create_vibe_card(obj) {
 
 	if(!is_ntk) {
 		var vibe_card_extender = document.createElement('div');
-		vibe_card_extender.style.textAlign = 'left';
+		vibe_card_extender.style.textAlign = 'center';
 		
 		var vibe_card_more_button = document.createElement('button');
 		vibe_card_more_button.style.border = 'none';
@@ -644,7 +629,7 @@ function create_vibe_card(obj) {
 			vibe_card_unsubscribe_button.vibe_id = vibe_id;
 			vibe_card_unsubscribe_button.onclick = function() {
 				// update followed vibes
-				var vibes = JSON.parse(localStorage.getItem('myvibes')) || {};
+				var vibes = JSON.parse(localStorage.getItem('myvibes')) || DEFAULT_FOLLOWED_VIBES;
 				delete vibes[this.vibe_id];
 				localStorage.setItem('myvibes', JSON.stringify(vibes));
 				
@@ -659,7 +644,19 @@ function create_vibe_card(obj) {
 
 		vibe_card.appendChild(vibe_card_extender);
 
-	}	
+	}
+
+	// add friction
+	if(is_ntk)	{
+		var friction = document.createElement('div');
+		friction.style.margin = '50px -10px 0 -10px';
+		friction.style.padding = '20px';
+		friction.style.background = 'green';
+		friction.style.color = 'white';
+		friction.innerHTML = '<h1 style="margin: 0 0 10px 0">Did you know?</h1><p>85% of statistics about people spending too much time on their phone are totally made up?</p><p>OK fine, that one\'s made up too, but still - you\'re all caught up! You can come back in the evening to get another dose of the news from every angle.</p>';
+
+		vibe_card.appendChild(friction);
+	}
 
 	return vibe_card;	
 }
@@ -818,7 +815,7 @@ function jsonp_parse_amalgam(full_amalgam) {
 	var obj = AMALGAM.cards; // the obj we'll parse here in this function
 
 	// get followed vibes from localstorage
-	var followed_vibes = JSON.parse(localStorage.getItem('myvibes')) || {};
+	var followed_vibes = JSON.parse(localStorage.getItem('myvibes')) || DEFAULT_FOLLOWED_VIBES;
 
 	// styles
 	document.body.style.background = '#fff';
@@ -847,7 +844,7 @@ function jsonp_parse_amalgam(full_amalgam) {
 			var	breaking_card = document.createElement('div');
 			breaking_card.style.fontSize = '36px';
 			breaking_card.style.position = 'relative';
-			breaking_card.style.padding = '100% 10px 50px 10px';
+			breaking_card.style.padding = '50% 10px 50px 10px';
 			breaking_card.style.color = 'white';
 			breaking_card.style.background = 'url(https://s.yimg.com/uu/api/res/1.2/wqnJSfOfa3viHAaifQUa7g--~B/Zmk9c3RyaW07aD0zODg7cHlvZmY9MDtxPTk1O3c9NzIwO3NtPTE7YXBwaWQ9eXRhY2h5b24-/https://media.zenfs.com/creatr-images/GLB/2017-12-20/c6510710-e5c0-11e7-970f-75cc8c9abb98_image-9208.cf.webp)';
 			breaking_card.style.backgroundSize = 'cover';
@@ -874,9 +871,17 @@ function jsonp_parse_amalgam(full_amalgam) {
 	// now paint the suggested vibes carousel
 	cardstream_main.appendChild(create_suggested_vibes_card(followed_vibes));
 
+	// TODO now add suggested vibes to be followed
+
 	// add the main cardstream to body
 	document.body.appendChild(cardstream_main);
 
+	// re-jigger the cardstream to make trending come last
+	for(var i = 0; i < cardstream_main.childNodes.length; i++) {
+		// not yet
+	}
+
+	// do left and right tabs
 	if(window.location.href.indexOf('multinav') > -1) {
 		// container for the cardstream explore
 		var cardstream_explore = document.createElement('div');
@@ -989,6 +994,104 @@ function jsonp_parse_amalgam(full_amalgam) {
 			}, 100);
 		});
 	}
+
+	// do the visit gamification thing now
+	frequency_tracker_message();
+}
+
+function jsonp_parse_threadlines(threadlines_obj)	{
+	THREADLINES = threadlines_obj;
+
+	var optionlist = '';
+	optionlist += '<option value="true">[everything]</option>';
+	optionlist += '<option value="text.match(/#metoo/)">#metoo</option>';
+	optionlist += '<option selected value="title.match(/\\Walexa\\W/) || summary.match(/\\Walexa\\W/) || summary.match(/\\Wgoogle assistant\\W/) || title.match(/\\Wgoogle assistant\\W/)">alexa and assistant</option>'
+	optionlist += '<option value="text.match(/\\Wbollywood\\W/)">bollywood</option>';
+	optionlist += '<option value="(text.match(/\\Wford motor\\W/) || text.match(/\\Wgeneral motors\\W/) || text.match(/\\Whonda\\W/) || text.match(/\\Wnissan\\W/) || text.match(/\\Wvag\\W/)) && provider != \'mercury news\'">detroit and foreign auto</option>';
+	optionlist += '<option value="text.match(/\\Whealth care\\W/)">health care</option>';
+	optionlist += '<option value="provider == \'last night now\'">last night now</option>';
+	optionlist += '<option value="provider == \'last night now\' && text.indexOf(\'bachelor\') == -1">last night now, but no bachelor</option>';
+	optionlist += '<option value="text.match(/\\Wmachine learning\\W/)">machine learning</option>';
+	optionlist += '<option value="text.match(/\\Wmachine learning\\W/) || text.match(/\\Wartificial intelligence\\W/)">machine learning or artificial intelligence</option>';
+	optionlist += '<option value="!text.match(/\\Wpolitics\\W/) && topic != \'politics\' && !text.match(/trump\/)">politics-free and trump-free news feed</option>';
+	optionlist += '<option value="(text.match(/\\Wpolitics\\W/) || topic == \'politics\') && !text.match(/trump\/) && provider != \'yahoo news video\'">politics, no trump, no yahoo news video</option>';
+	optionlist += '<option value="aspect == 0.56">vertical videos</option>';
+	optionlist += '<option value="aspect == 0.56 && !text.match(/\\Wtrump\\W/)">vertical videos not about trump</option>';
+	optionlist += '<option value="aspect == 0.56 && !provider.match(/yahoo/)">vertical videos not from yahoo</option>';
+
+	document.body.innerHTML = '<form id="query"><select id="threadlines_preselects" style="margin: 10px 10%; width: 80%; background: white; border: 1px outset">' + optionlist + '</select><textarea id="threadlines_conditions" style="width: 80%; margin: 10px 10%" rows=10>title.match(/\\Walexa\\W/) || summary.match(/\\Walexa\\W/) || summary.match(/\\Wgoogle assistant\\W/) || title.match(/\\Wgoogle assistant\\W/)</textarea><div style="text-align: center"><input type="button" id="query_submit" value="go" style="border: 2px outset; margin: 10px"/></div></form><div id="stream"></div>';
+
+	document.getElementById('threadlines_preselects').onchange = function() {
+		document.getElementById('threadlines_conditions').value = this.value;
+		document.getElementById('query_submit').click();
+	}
+	
+
+	document.getElementById('query_submit').onclick = function() {
+		console.log('query handling');
+
+		document.getElementById('stream').innerHTML = '';
+
+		var condition = document.getElementById('threadlines_conditions').value
+		console.log('condition:');
+		console.log(condition);
+
+		var matched_stories = [];
+
+		// fake news
+		// (text.match(/\Wfake news\W/))
+		// science videos
+		// type == 'video_link' && topic == 'science'
+		// vertical videos
+		// aspect == 0.56
+
+
+		for(uuid in THREADLINES)	{
+			post = THREADLINES[uuid];
+			provider = post['provider'] ? post['provider'].toLowerCase() : '';
+			aspect = post['aspect'];
+			type = post['content_type'].toLowerCase();
+			reactions = post['reaction_count'];
+			topic = post['vibe_name'].toLowerCase();
+			title = post['title'] ? post['title'].toLowerCase() : '';
+			summary = post['summary'] ? post['summary'].toLowerCase() : '';
+			text = title + ' ' + summary;
+			imgurl = post['img'];
+
+			if(
+				(
+					provider != 'pr newswire' &&
+					provider != 'business wire' &&
+					provider != 'globenewswire'					
+				) &&
+				(eval(condition))
+			) {
+				matched_stories.push(post);
+			}
+		}
+
+		for(var i = 0; i < matched_stories.length; i++)	{
+			for(var j = i + 1; j < matched_stories.length; j++)	{
+				if(matched_stories[i].content_relative_time > matched_stories[j].content_relative_time)	{
+					tmp = matched_stories[i];
+					matched_stories[i] = matched_stories[j];
+					matched_stories[j] = tmp;
+				}
+			}
+		}
+
+		console.log('matched: ' + matched_stories.length)
+		console.log(matched_stories)
+
+		for(var i = 0; i < matched_stories.length; i++)	{
+			var post_div = document.createElement('div');
+			post_div.innerHTML = '<div class="th_topic" style="font-size: 8px">' +matched_stories[i].vibe_name + '</div>' + '<div class="th_title" style="font-size: 8px">' + matched_stories[i].content_relative_time + 'h</div>' + '<div class="th_title" style="font-size: 20px"><a href="' + matched_stories[i].content_url + '">' + matched_stories[i].title + '</a></div>' + '<div class="th_provider" style="font-size: 10px">' + matched_stories[i].provider + '</div>' + '<div class="th_summary" style="font-size: 12px">' + matched_stories[i].summary + '</div>' + '<br/><br/>';
+
+			document.getElementById('stream').appendChild(post_div);
+		}
+
+		return false;
+	}
 }
 
 function create_cardstream_card_header_shell(header_text, theme_color, secondary_color) {
@@ -1000,19 +1103,26 @@ function create_cardstream_card_header_shell(header_text, theme_color, secondary
 		secondary_color = SECONDARY_COLORS[header_text.charCodeAt(0) % COLORS.length]
 	}
 
+	var card_header_container = document.createElement('div');
+	card_header_container.style.textAlign = 'left';
+
 	var card_header = document.createElement('h1');
-	card_header.innerHTML = header_text + ':';
+	card_header.innerHTML = header_text + '';
 	card_header.style.margin = '0';
 	card_header.style.display = 'inline-block'
 	card_header.style.paddingBottom = '10px'
-	card_header.style.marginBottom = '10px'
+	card_header.style.marginBottom = '0px'
+	card_header.style.fontSize = '40px'
+	card_header.style.textAlign = 'left'
 	card_header.style.borderBottom = '0px solid gray'
-	card_header.style.borderColor = theme_color;
+	card_header.style.borderColor = secondary_color;
 	card_header.style.background = '-webkit-linear-gradient(135deg, ' + secondary_color + ', ' + theme_color + ')';
 	card_header.style.webkitBackgroundClip = 'text';
 	card_header.style.webkitTextFillColor= 'transparent';
 
-	return card_header;
+	card_header_container.appendChild(card_header)
+
+	return card_header_container;
 }
 
 function create_suggested_vibes_card(followed_vibes) {
@@ -1078,7 +1188,7 @@ function create_suggested_vibes_card(followed_vibes) {
 
 			ui_add_vibe_card(this.vibe_id);
 
-			var vibes = JSON.parse(localStorage.getItem('myvibes')) || {};
+			var vibes = JSON.parse(localStorage.getItem('myvibes')) || DEFAULT_FOLLOWED_VIBES;
 			vibes[this.vibe_id] = 1;
 			localStorage.setItem('myvibes', JSON.stringify(vibes));
 		}
@@ -1086,7 +1196,7 @@ function create_suggested_vibes_card(followed_vibes) {
 		suggested_vibes.appendChild(vibe_card);
 
 		// hide more than X
-		if(merchandised_vibes > 15) {
+		if(merchandised_vibes > (DEFAULT_NUM_MERCHANDISED_VIBES -1)) {
 			vibe_card.style.display = 'none';
 		}
 		else {
@@ -1105,7 +1215,7 @@ function create_suggested_vibes_card(followed_vibes) {
 
 	// show more?
 	var vibe_card_extender = document.createElement('div');
-	vibe_card_extender.style.textAlign = 'left';
+	vibe_card_extender.style.textAlign = 'center';
 	vibe_card_extender.style.padding = '0 10px';
 
 	
@@ -1114,9 +1224,9 @@ function create_suggested_vibes_card(followed_vibes) {
 	vibe_card_more_button.style.background = 'none';
 	vibe_card_more_button.style.color = '#666';
 	vibe_card_more_button.style.padding = '10px 0px';
-	vibe_card_more_button.innerHTML = merchandised_vibes == 16 ? 'Show more' : 'That\'s all for now';
+	vibe_card_more_button.innerHTML = merchandised_vibes == DEFAULT_NUM_MERCHANDISED_VIBES ? 'Show more' : 'That\'s all for now';
 	// handler for when people ask for more
-	if(merchandised_vibes == 16) {
+	if(merchandised_vibes == DEFAULT_NUM_MERCHANDISED_VIBES) {
 		vibe_card_more_button.onclick = function() {
 			var vibe_card = this.parentNode.parentNode;
 
@@ -1231,7 +1341,6 @@ function jsonp_parse_posts(obj) {
 }
 
 // function for auto refreshing the backend
-var RELOAD_FREQ = 5; // in minutes
 var reload_backend = function() {
 	console.log('starting backend reload');
 	var scr_elem = document.createElement('script');
@@ -1241,13 +1350,181 @@ var reload_backend = function() {
 	// call me again in RELOAD_FREQ minutes
 	setTimeout(reload_backend, RELOAD_FREQ * 60000);
 }
-// fire the auto-reloader?
+// start the autoreloader if it's been requested
 if(
 	window.location.href.indexOf('autoreload') > -1
 ) {
 	console.log('starting autoreloads');
 	setTimeout(reload_backend, RELOAD_FREQ * 60000);
 }
+
+// user frequency tracker
+// VISIT_HISTORY.push()
+function frequency_tracker_update() {
+	// get the number of minutes since the unix epoch
+	var now = Math.floor(new Date().getTime() / 1000 / 60);
+
+	var last_minute = 0;
+	var last_day = 0;
+	var last_hour = 0;
+	var last_week = 0;
+	var last_month = 0;
+	
+	for(var i = 0; i < VISIT_HISTORY.length; i++)	{
+		var old_timestamp = VISIT_HISTORY[i];
+
+		if((now - old_timestamp) < (1))	{
+			last_minute++;
+		}
+		if((now - old_timestamp) < (60))	{
+			last_hour++;
+		}
+		if((now - old_timestamp) < (60 * 24))	{
+			last_day++;
+		}
+		if((now - old_timestamp) < (60 * 24 * 7))	{
+			last_week++;
+		}
+		if((now - old_timestamp) < (60 * 24 * 30))	{
+			last_month++;
+		}
+	}
+
+	// add this visit to the log
+	VISIT_HISTORY.push(now);
+
+	// truncate visit history to 100 visits
+	while(VISIT_HISTORY.length > 100) {
+		VISIT_HISTORY.shift()
+	};
+
+	// localstorage.setItem('')
+	localStorage.setItem('visithistory', JSON.stringify(VISIT_HISTORY));
+
+	var freq_log = ({
+		'in the last minute' : last_minute,
+		'in the last hour' : last_hour,
+		'in the last day' : last_day,
+		'in the last week' : last_week,
+		'in the last month' : last_month
+	});
+
+	return freq_log;
+}
+FREQUENCY_LOG = frequency_tracker_update();
+console.log(FREQUENCY_LOG);
+
+// messaginng system
+function frequency_tracker_message()	{
+	// all these are NOT INCLUDING THIS VISIT
+	var visits_thisday = FREQUENCY_LOG['in the last day'];
+	var visits_thisweek = FREQUENCY_LOG['in the last week'];
+	var visits_thismonth = FREQUENCY_LOG['in the last month'];
+
+	var show_message = function(message_to_show) {
+		var message_div = document.createElement('div');
+		message_div.id = 'message_div';
+		message_div.style.position = 'fixed';
+		message_div.style.bottom = '0';
+		message_div.style.left = '0';
+		message_div.style.width = '90%';
+		message_div.style.margin = '5%';
+		message_div.style.padding = '10px';
+		message_div.style.boxShadow = '0 0 10px 0 #ccc';
+		message_div.style.boxSizing = 'border-box';
+		message_div.style.background = 'lightgreen';
+		message_div.style.borderRadius = '5px';
+		message_div.style.opacity = '0';
+		message_div.style.transitionDuration = '0.5s';
+		message_div.style.transform = 'scale(0.1)';
+		message_div.innerHTML = message_to_show + '<div style="font-size: 6px; margin-top: 6px">scroll to dismiss this message</div>';
+
+		document.body.appendChild(message_div);
+
+		setTimeout(function() {
+			document.getElementById('message_div').style.opacity = 1;
+			document.getElementById('message_div').style.transform = 'scale(1)';
+		}, 1);
+
+		window.setTimeout(message_clearer, 1000)
+	}
+
+	if(visits_thismonth == 0)	{
+		show_message('welcome to newsroomish!<br/><br/>get just what you need to know right up here at the top, and then keep going down to get more news.<br/><br/>if you\'re feeling daring, follow a storyline to get updates on it every time you come back. don\'t worry, you can always unfollow!<br/>');
+	}
+	else if(visits_thisday == 0)	{
+		show_message('good for you, checking in today! enjoy your taste of the top stories.');		
+	}
+	else if(visits_thisday == 2)	{
+		show_message('wow, you\'re staying really informed! you\'ve checked in more than ' + (Math.floor(Math.random() * 50) + 50) + '% of the newsroomish audience today. keep it up!');		
+	}
+	else if(visits_thisday == 4)	{
+		show_message('you just keep coming back for more! you\'ve checked in more than ' + (Math.floor(Math.random() * 30) + 70) + '% of the newsroomish audience today. keep it up!');		
+	}
+	else if(visits_thisweek == 0)	{
+		show_message('welcome back! we\'ve missed you. more than ' + (Math.floor(Math.random() * 50) + 50) + '% of the newsroomish audience has showed up since the last time we saw you. go ahead and get caught up on your news now, and don\'t be such a stranger!');				
+	}
+	else if(visits_thisweek == 6)	{
+		show_message('welcome back! you\'re getting to be a regular around here. check out the big brains on you!');				
+	}
+	else if(visits_thisweek == 12)	{
+		show_message('daaaaaaaaaamn you on fire! we\'ve seen you more than ' + (Math.floor(Math.random() * 50) + 50) + '% of the audience in the last week! keep up the good work.');				
+	}
+	else if(window.location.href.indexOf('force_message') > -1) {
+		show_message('forced message here');
+	}
+}
+
+// this next function clears messages once you scroll
+var message_clearer = function() {
+	if(!document.getElementById('message_div')) return;
+
+	if(document.body.scrollTop == 0) {
+		window.setTimeout(message_clearer, 1000);
+	}
+	else {
+		document.getElementById('message_div').style.opacity = '0';
+	}
+}
+
+// void "main"
+document.addEventListener("DOMContentLoaded", function(event) {
+	// asked to clear out storage?
+	if(window.location.href.indexOf('clearlocalstorage') > -1)	{
+		localStorage.clear();
+	}
+
+	// looking at full comment list?
+	if(window.location.href.indexOf('allcomments') > -1)	{
+		document.body.innerHTML = '';
+
+		console.log('fetching allcomments')
+		var scr = document.createElement('script');
+		scr.src = 'caches/c_allvibes.jsonp';
+		document.head.appendChild(scr);
+	}
+	// special prototype for card streams?
+	else if(window.location.href.indexOf('cardstream') > -1) {
+		document.body.innerHTML = '';
+
+		console.log('config: cardstream');
+		var scr = document.createElement('script');
+		scr.src = 'caches/amalgam.jsonp?rand=' + Math.random();
+		document.head.appendChild(scr);
+	}
+	else if(window.location.href.indexOf('threadlines') > -1) {
+		document.body.innerHTML = '';
+
+		console.log('config: threadlines');
+		var scr = document.createElement('script');
+		scr.src = 'caches/threadlines.jsonp?rand=' + Math.random();
+		document.head.appendChild(scr);
+	}
+	else {
+		// just get the list of vibes we've got, we'll figure out what we're doing after
+		load_vibe_list();
+	}
+});
 </script>
 
 </html>

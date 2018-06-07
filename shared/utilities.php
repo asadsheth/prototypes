@@ -50,6 +50,7 @@ function curl_post_stream($vibe_id, $next, $ranking)	{
 	}
 	else {
 		if($ranking == 'smartChrono') $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/smartChronoStream?lang=en-US&region=US&enableNewsroomOTT=true';
+		// if($ranking == 'smartChrono') $url = 'https://vibe-yql-burn.media.yahoo.com/api/vibe/v3/topics/' . $vibe_id . '/smartChronoStream?lang=en-US&region=US&enableNewsroomOTT=true';
 		else if($ranking == 'ranked') $url = 'http://mobile-homerun-yql.media.yahoo.com:4080/api/vibe/v1/topics/' . $vibe_id . '/rankedStream?lang=en-US&region=US&enableNewsroomOTT=true';		
 	}
 
@@ -282,7 +283,7 @@ function get_vibe_posts($vibe_obj) {
 
 	$vibe_id = $vibe_obj['id'];
 	$vibe_name = $vibe_obj['name'];
-	$vibe_ranking = isset($vibe_obj['ranking']) ? $vibe_obj['ranking'] : 'smartChrono'; // default to smartChrono
+	$vibe_ranking = isset($vibe_obj['ranking']) ? $vibe_obj['ranking'] : 'smartChrono'; // default to smartChrono; other choice is 'ranked'
 	// $vibe_ranking = isset($vibe_obj['ranking']) ? $vibe_obj['ranking'] : 'ranked'; // default to ranked
 
 	// get local posts if they exist
@@ -347,6 +348,8 @@ function get_vibe_posts($vibe_obj) {
 		$published_at = $obj['publishedAt'];
 		$topic = $obj['topics'][0]['name'];
 		$provider = $obj['content']['provider']['name'];
+		$provider_url = $obj['content']['provider']['url'];
+		$provider_image = $obj['content']['provider']['image'] ? $obj['content']['provider']['image']['originalUrl'] : '';
 		$comments_count = $obj['comments']['count'];
 		$content_url = $obj['content']['url'];
 		$content_published_at = $obj['content']['publishedAt'];
@@ -370,6 +373,13 @@ function get_vibe_posts($vibe_obj) {
 		if(
 			!$already_exists
 			&& $lead_attribution == 'provider'
+			&& (
+				$provider != 'PR Newswire'
+				&& $provider != 'Business Wire'
+				&& $provider != 'GlobeNewswire'
+				&& $provider != 'ACCESSWIRE'
+				&& $provider != 'Newsfile'
+			)
 		)	{
 			// add it to the front of the list!
 			array_push($posts, array(
@@ -377,6 +387,8 @@ function get_vibe_posts($vibe_obj) {
 				'post_url' => $post_url,
 				'author' => $author,
 				'provider' => $provider,
+				'provider_url' => $provider_url,
+				'provider_image' => $provider_image,
 				'lead_attribution' => $lead_attribution,
 				'link' => $link,
 				'imgresolutions' => $resolutions,
