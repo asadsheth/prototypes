@@ -468,7 +468,7 @@ function create_vibe_card(obj) {
 			// skip ntks that are missing thumbs. should never happen
 			if(is_ntk && !has_thumbnail) continue;
 
-			vibe_story.style.margin = is_ntk ? '20px 0 -10px 0' : (has_comment ? '20px -20px' : '20px 0');
+			vibe_story.style.margin = is_ntk ? '20px 0 20px 0' : (has_comment ? '20px -20px' : '20px 0');
 			vibe_story.style.padding = has_comment ? '20px 20px' : '';
 			vibe_story.style.background = has_comment ? '#f9f9f9' : '';
 			vibe_story.style.position = 'relative';
@@ -502,7 +502,7 @@ function create_vibe_card(obj) {
 				vibe_story_img.style.boxShadow = is_ntk ? '0 0 10px 0 gray' : ''; // dropp because of perf
 				vibe_story_img.style.background = 'url(' + ((is_ntk || has_vertical_thumbnail) ? post_meta.img : post_meta.imgresolutions[0].url) + ') no-repeat center 25%';
 				vibe_story_img.style.backgroundSize = 'cover'
-				vibe_story_img.innerHTML = is_ntk ? '<div style="display: inline-block;color: white;width: 100%;vertical-align: top;position: absolute;top: 0px;right: 0px;padding: 0 20px;text-align: right;border-radius: 10px;font-size: 75px;opacity: 0.5; text-shadow: 0 0 10px #000">' + (j + 1) + '</div>' : '';
+				vibe_story_img.innerHTML = is_ntk ? '<div style="display: inline-block;color: white;width: 100%;vertical-align: top;position: absolute;top: -50px;right: 0px;padding: 0 20px;text-align: right;border-radius: 10px;font-size: 75px;opacity: 0.75; text-shadow: 0 0 10px #000">' + (j + 1) + '</div>' : '';
 				vibe_story.appendChild(vibe_story_img);
 			}
 					
@@ -556,7 +556,19 @@ function create_vibe_card(obj) {
 				vibe_story_meta.style.borderRadius = '10px';
 				vibe_story_img.appendChild(vibe_story_meta);
 
-				var vibe_sourcing = document.createElement('div');
+				var TEMPERATURE_GRADIENT_COLORS = ['red', 'orange', 'yellow'];
+				var TEMPERATURE_MESSAGES = ['Many news publishers are covering this story.', 'A few other major news coverage outlets are following this story.', 'This story is emerging.'];
+				TEMPERATURE_INDEX = Math.floor(Math.random() * 3);
+				
+				var vibe_story_temperature = document.createElement('div');
+				vibe_story_temperature.style.fontSize = '10px';
+				vibe_story_temperature.style.marginBottom = '-10px'
+				vibe_story_temperature.innerHTML = '<img style="width: 20px; height: 20px; background: -webkit-radial-gradient(' + TEMPERATURE_GRADIENT_COLORS[TEMPERATURE_INDEX] + ', white 75%, white)" src="https://d30y9cdsu7xlg0.cloudfront.net/png/151029-200.png" />' + '<span style="position: relative; top: -7px; left: 3px">' + TEMPERATURE_MESSAGES[TEMPERATURE_INDEX] + '</span>';
+				vibe_story.appendChild(vibe_story_temperature);
+
+				var vibe_substories = document.createElement('div');
+				vibe_substories.innerHTML = '<div class="cardstream_vibe_story" style="margin: 20px 0px; position: relative;"><div class="vibe_story_img" style="display: inline-block; border-radius: 5px; width: 82px; height: 82px; margin-top: 0px; margin-right: 0px; margin-bottom: 0px; background: gray center 25% / cover no-repeat;"></div><div style="padding-left: 10px; display: inline-block; color: rgb(170, 170, 170); width: 70%; vertical-align: top;"><div style="display: inline-block; font-size: 12px;"><img style="height: 12px; position: relative; top: 1px" src="http://l.yimg.com/os/152/2012/04/21/image001-png_162613.png"></div><div style="display: inline-block; font-size: 12px;">&nbsp; &bull; <font style="">' + Math.floor(Math.random() * 8 + 1) + 'h</font></div><div style="font-size: 15px; font-weight: normal; color: rgb(34, 34, 34); -webkit-line-clamp: 3; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical;">Lorem ipsum dolor amet sil lorem ipsum dolor amet sil</div><div style="font-size: 10px; margin: 5px 0px; color: midnightblue;"></div></div></div><div class="cardstream_vibe_story" style="margin: 20px 0px; position: relative;"><div class="vibe_story_img" style="display: inline-block; border-radius: 5px; width: 82px; height: 82px; margin-top: 0px; margin-right: 0px; margin-bottom: 0px; background: gray center 25% / cover no-repeat;"></div><div style="padding-left: 10px; display: inline-block; color: rgb(170, 170, 170); width: 70%; vertical-align: top;"><div style="display: inline-block; font-size: 12px;"><img style="height: 12px; position: relative; top: 1px" src="http://l.yimg.com/os/152/2012/04/21/image001-png_162613.png"></div><div style="display: inline-block; font-size: 12px;">&nbsp; &bull; <font style="">' + Math.floor(Math.random() * 8 + 1) + 'h</font></div><div style="font-size: 15px; font-weight: normal; color: rgb(34, 34, 34); -webkit-line-clamp: 3; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical;">Lorem ipsum dolor amet sil lorem ipsum dolor amet sil</div><div style="font-size: 10px; margin: 5px 0px; color: midnightblue;"></div></div></div><div class="cardstream_vibe_story" style="margin: 20px 0px; position: relative;"><div class="vibe_story_img" style="display: inline-block; border-radius: 5px; width: 82px; height: 82px; margin-top: 0px; margin-right: 0px; margin-bottom: 0px; background: gray center 25% / cover no-repeat;"></div><div style="padding-left: 10px; display: inline-block; color: rgb(170, 170, 170); width: 70%; vertical-align: top;"><div style="display: inline-block; font-size: 12px;"><img style="height: 12px; position: relative; top: 1px" src="http://l.yimg.com/os/152/2012/04/21/image001-png_162613.png"></div><div style="display: inline-block; font-size: 12px;">&nbsp; &bull; <font style="">' + Math.floor(Math.random() * 8 + 1) + 'h</font></div><div style="font-size: 15px; font-weight: normal; color: rgb(34, 34, 34); -webkit-line-clamp: 3; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical;">Lorem ipsum dolor amet sil lorem ipsum dolor amet sil</div><div style="font-size: 10px; margin: 5px 0px; color: midnightblue;"></div></div></div>';
+				vibe_story.appendChild(vibe_substories);
 
 
 			} else {
@@ -650,10 +662,10 @@ function create_vibe_card(obj) {
 	if(is_ntk)	{
 		var friction = document.createElement('div');
 		friction.style.margin = '50px -10px 0 -10px';
-		friction.style.padding = '20px';
+		friction.style.padding = '50px';
 		friction.style.background = 'green';
 		friction.style.color = 'white';
-		friction.innerHTML = '<h1 style="margin: 0 0 10px 0">Did you know?</h1><p>85% of statistics about people spending too much time on their phone are totally made up?</p><p>OK fine, that one\'s made up too, but still - you\'re all caught up! You can come back in the evening to get another dose of the news from every angle.</p>';
+		friction.innerHTML = '<h1 style="margin: 0 0 10px 0">Did you know?</h1><p>85% of statistics about people spending too much time on their phone are totally made up?</p><p>OK fine, that one\'s made up too, but still - you\'re all caught up! You can come back in the evening to get another dose of the news from every angle.</p><p>Still hungry for more? Keep scrolling!</p>';
 
 		vibe_card.appendChild(friction);
 	}
@@ -846,14 +858,17 @@ function jsonp_parse_amalgam(full_amalgam) {
 			breaking_card.style.position = 'relative';
 			breaking_card.style.padding = '50% 10px 50px 10px';
 			breaking_card.style.color = 'white';
-			breaking_card.style.background = 'url(https://s.yimg.com/uu/api/res/1.2/wqnJSfOfa3viHAaifQUa7g--~B/Zmk9c3RyaW07aD0zODg7cHlvZmY9MDtxPTk1O3c9NzIwO3NtPTE7YXBwaWQ9eXRhY2h5b24-/https://media.zenfs.com/creatr-images/GLB/2017-12-20/c6510710-e5c0-11e7-970f-75cc8c9abb98_image-9208.cf.webp)';
+			breaking_card.style.backgroundColor = 'gray';
+			// breaking_card.style.background = 'url(https://s.yimg.com/uu/api/res/1.2/wqnJSfOfa3viHAaifQUa7g--~B/Zmk9c3RyaW07aD0zODg7cHlvZmY9MDtxPTk1O3c9NzIwO3NtPTE7YXBwaWQ9eXRhY2h5b24-/https://media.zenfs.com/creatr-images/GLB/2017-12-20/c6510710-e5c0-11e7-970f-75cc8c9abb98_image-9208.cf.webp)';
 			breaking_card.style.backgroundSize = 'cover';
 			breaking_card.style.backgroundPosition = '50% 50%';
 			breaking_card.style.marginBottom = '10px';
 			breaking_card.style.boxShadow = '0 0 10px 0 gray';
 			breaking_card.innerHTML = '<div style="background: linear-gradient(135deg, red, darkorange); padding: 10px 20px 10px 10px; margin-left: -10px; margin-bottom: 10px; display: inline-block; border-radius: 0 10px 10px 0; color: white; font-weight: bold; text-shadow: 1px 1px 10px black">' + obj[i].heading + '</div>' + '<div style="font-size: 18px; color: white; text-shadow: 1px 1px 10px black">' + obj[i].msg + '</div>';
 			// for now, only append when explicitly requested
-			if(window.location.href.indexOf('breaking') > -1) cardstream_main.appendChild(breaking_card);
+			if(
+				true ||
+				window.location.href.indexOf('breaking') > -1) cardstream_main.appendChild(breaking_card);
 		}
 		else if(
 			is_ntk

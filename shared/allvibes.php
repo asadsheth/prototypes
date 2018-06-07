@@ -92,7 +92,7 @@ for($i = 0; $i < count($NEW_SUGG_VIBES); $i++)	{
 
 // add manually next time it runs
 $NEW_ADD_VIBES = array(
-	array('id' => '66e9fb86-b27f-3261-9593-c47d4e841dd8', 'name' => 'Blockchain')
+	// array('id' => '66e9fb86-b27f-3261-9593-c47d4e841dd8', 'name' => 'Blockchain')
 );
 for($i = 0; $i < count($NEW_ADD_VIBES); $i++)	{
 	// does this vibe already exist?
